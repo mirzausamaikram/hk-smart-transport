@@ -1,0 +1,68 @@
+<script lang="ts">
+  import { onMount } from 'svelte';
+  import { getNearby } from '$lib/api';
+  import MapComponent from '$lib/components/MapComponents.svelte';
+
+  let lat = 0;
+  let lng = 0;
+  let stops: any[] = [];
+  let pois: string[] = [];
+  let loading = false;
+  let mapMarkers: {lat:number; lng:number; title:string}[] = [];
+
+  async function locateAndSearch() {
+    loading = true;
+    if (!navigator.geolocation) {
+      alert('Geolocation not supported');
+      loading = false;
+      return;
+    }
+    navigator.geolocation.getCurrentPosition(async pos => {
+      lat = pos.coords.latitude;
+      lng = pos.coords.longitude;
+
+      const data = await getNearby(lat, lng);
+      stops = data.stops;
+      pois = data.pois;
+
+      mapMarkers = stops.map(s => ({
+        lat: s.lat,
+        lng: s.lon,
+        title: s.name
+      }));
+      loading = false;
+    }, err => {
+      console.error(err);
+      alert('Failed to get location');
+      loading = false;
+    });
+  }
+
+  onMount(() => {
+    locateAndSearch();
+  });
+</script>
+
+<h1>Nearby Transport Finder</h1>
+<p>Latitude: {lat.toFixed(4)}, Longitude: {lng.toFixed(4)}</p>
+
+{#if loading}
+  <p>Loading…</p>
+{:else}
+  <h2>Stops within 1 km</h2>
+  <ul>
+    {#each stops as stop}
+      <li>{stop.name} – {stop.dist_m.toFixed(2)} m</li>
+    {/each}
+  </ul>
+
+  <h2>Tourist POIs</h2>
+  <ul>
+    {#each pois as poi}
+      <li>{poi}</li>
+    {/each}
+  </ul>
+
+  <h3>Map</h3>
+  <MapComponent lat={lat} lng={lng} zoom={14} markers={mapMarkers} />
+{/if}
