@@ -644,6 +644,9 @@
     border-radius: 16px;
     border: 1px solid #e2e8f0;
     transition: all 0.3s ease;
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
   }
 
   .info-item:hover {
@@ -677,7 +680,7 @@
     background: #0f172a;
     padding: 5px 10px;
     border-radius: 4px;
-    margin-top: 10px;
+    margin-top: auto; /* push to bottom for consistent alignment */
     text-align: left;
   }
 
