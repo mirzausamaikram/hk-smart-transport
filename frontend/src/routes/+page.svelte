@@ -318,6 +318,13 @@
     display: flex;
     gap: 8px;
     margin-bottom: 10px;
+    align-items: center;
+  }
+
+  .inputs button {
+    white-space: nowrap;
+    padding: 12px 20px;
+    min-width: fit-content;
   }
   .stats {
     margin-top: 20px;

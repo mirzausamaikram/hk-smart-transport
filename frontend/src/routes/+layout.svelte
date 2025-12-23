@@ -23,6 +23,7 @@
     padding: 18px 28px;
     transition: all 0.2s ease;
     border-bottom: 3px solid transparent;
+    white-space: nowrap;
   }
 
   nav a:hover {
@@ -46,17 +47,26 @@
   }
 
   :global(button) {
-    padding: 10px 15px;
+    padding: 12px 24px;
     border: none;
-    background: #2563eb;
+    background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%);
     color: white;
-    border-radius: 8px;
+    border-radius: 10px;
     cursor: pointer;
     font-size: 0.95rem;
+    font-weight: 600;
+    transition: all 0.3s ease;
+    box-shadow: 0 4px 12px rgba(37, 99, 235, 0.3);
   }
   
   :global(button:hover) {
-    background: #1e40af;
+    background: linear-gradient(135deg, #2563eb 0%, #1e40af 100%);
+    transform: translateY(-2px);
+    box-shadow: 0 6px 16px rgba(37, 99, 235, 0.4);
+  }
+
+  :global(button:active) {
+    transform: translateY(0);
   }
 
   :global(input), :global(textarea) {

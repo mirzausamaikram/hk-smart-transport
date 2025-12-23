@@ -1,4 +1,3 @@
-// @ts-nocheck
 <script lang="ts">
   import { onMount } from "svelte";
   import { marked } from "marked";

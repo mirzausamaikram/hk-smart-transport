@@ -1,5 +1,4 @@
 <script lang="ts">
-// @ts-nocheck
   import LeafletMap from "$lib/components/LeafletMap.svelte";
   import SearchBar from "$lib/components/SearchBar.svelte";
 

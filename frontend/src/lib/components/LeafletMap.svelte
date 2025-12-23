@@ -1,4 +1,3 @@
-// @ts-nocheck
 <script lang="ts">
   import { onMount, createEventDispatcher } from "svelte";
   import type { LeafletMouseEvent } from 'leaflet';
