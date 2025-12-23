@@ -646,7 +646,7 @@
     transition: all 0.3s ease;
     display: flex;
     flex-direction: column;
-    align-items: flex-start;
+    align-items: center; /* center icon and text horizontally */
   }
 
   .info-item:hover {
@@ -665,12 +665,14 @@
     color: #1e293b;
     margin: 0 0 10px 0;
     font-size: 1.3em;
+    text-align: center;
   }
 
   .info-item p {
     color: #64748b;
     margin: 0 0 10px 0;
     line-height: 1.6;
+    text-align: center;
   }
 
   .code-line {
@@ -681,7 +683,8 @@
     padding: 5px 10px;
     border-radius: 4px;
     margin-top: auto; /* push to bottom for consistent alignment */
-    text-align: left;
+    text-align: center;
+    width: 100%;
   }
 
   @media (max-width: 768px) {
