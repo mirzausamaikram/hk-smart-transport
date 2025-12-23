@@ -4,7 +4,7 @@
 
   export let center: { lat: number; lng: number };
   export let markers: { lat: number; lng: number; title: string; color: string }[] = [];
-  export let polyline: { lat: number; lng: number }[] = [];
+  export let polyline: { lat: number; lng: number; style?: 'solid' | 'dotted' }[] = [];
   // POI markers (separate layer)
   export let poiMarkers: { lat: number; lng: number; name: string; description?: string; type?: string }[] = [];
   export let showPois: boolean = true;
@@ -80,13 +80,35 @@
 
     if (polyline.length > 0) {
       import("leaflet").then((L) => {
-        const pts = polyline.map((p): [number, number] => [p.lat, p.lng]);
-        L.polyline(pts, { color: "blue", weight: 5 }).addTo(layerRoute);
+        // Group polyline segments by style
+        let currentSegment: { lat: number; lng: number }[] = [];
+        let currentStyle: 'solid' | 'dotted' = 'solid';
+        
+        polyline.forEach((p, idx) => {
+          const style: 'solid' | 'dotted' = p.style || 'solid';
+          
+          if (style !== currentStyle && currentSegment.length > 0) {
+            // Render current segment
+            const pts = currentSegment.map((pt): [number, number] => [pt.lat, pt.lng]);
+            const dashArray: string = currentStyle === 'dotted' ? '5, 5' : 'none';
+            L.polyline(pts, { color: "blue", weight: 5, dashArray }).addTo(layerRoute);
+            currentSegment = [];
+            currentStyle = style;
+          }
+          currentSegment.push(p);
+        });
+        
+        // Render final segment
+        if (currentSegment.length > 1) {
+          const pts = currentSegment.map((pt): [number, number] => [pt.lat, pt.lng]);
+          const dashArray: string = currentStyle === 'dotted' ? '5, 5' : 'none';
+          L.polyline(pts, { color: "blue", weight: 5, dashArray }).addTo(layerRoute);
+        }
 
         // Fit map bounds to include route and markers
         try {
           const allPts: [number, number][] = [];
-          pts.forEach(pt => allPts.push(pt));
+          polyline.forEach(p => allPts.push([p.lat, p.lng]));
           markers.forEach(m => allPts.push([m.lat, m.lng]));
           if (allPts.length > 0) {
             const bounds = L.latLngBounds(allPts);

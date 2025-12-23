@@ -145,6 +145,10 @@
       toLng: station.lng.toString(),
       toName: station.name
     });
+    // If navigating to a Bus Stop, show walking-only route to that stop
+    if (station.type === "Bus Stop" || station.type?.toLowerCase().includes("bus")) {
+      params.set("walkOnly", "1");
+    }
     goto(`/route-planner?${params.toString()}`);
   }
 

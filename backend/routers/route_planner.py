@@ -4,10 +4,20 @@ import requests
 import httpx
 import re
 import asyncio
+import math
 from . import tsp
 from .nearby_utils import query_nearby
+from .pedestrian_router import route_walking, load_pedestrian_network
 
 router = APIRouter()
+
+# Try to load pedestrian network on startup
+try:
+    load_pedestrian_network()
+    PEDESTRIAN_NETWORK_LOADED = True
+except Exception as e:
+    print(f"Warning: Pedestrian network not loaded: {e}")
+    PEDESTRIAN_NETWORK_LOADED = False
 
 # Constants
 OSRM_URL = "http://router.project-osrm.org/route/v1/driving/"
@@ -133,6 +143,7 @@ class RouteRequest(BaseModel):
     start_lng: float
     end_lat: float
     end_lng: float
+    walk_only: bool = False  # For direct walk-to-stop routes
 
 
 class MultiStopRequest(BaseModel):
@@ -147,9 +158,9 @@ class OptimizeRequest(BaseModel):
 # HELPERS
 # ----------------------------------------------------------
 
-def osrm_polyline(coords: list[list[float]]):
-    """Convert OSRM LNG,LAT → LAT,LNG polyline format"""
-    return [[lat, lng] for lng, lat in coords]
+def osrm_polyline(coords: list[list[float]], style: str = "dotted"):
+    """Convert OSRM LNG,LAT → LAT,LNG polyline format with style"""
+    return [[lat, lng, style] for lng, lat in coords]
 
 
 # ----------------------------------------------------------
@@ -166,88 +177,119 @@ async def enhanced_route(req: RouteRequest):
     # Find nearby transit stops at end (within 500m)
     end_stops = await query_nearby(req.end_lat, req.end_lng, radius_m=500, limit=10)
     
-    # Get walking route
-    walk_coords = f"{req.start_lng},{req.start_lat};{req.end_lng},{req.end_lat}"
-    walk_url = f"{OSRM_WALK_URL}{walk_coords}?overview=full&geometries=geojson&steps=true"
-    walk_resp = requests.get(walk_url).json()
-    
     instructions = []
     total_distance = 0
     total_duration = 0
+    polyline_out = []  # final polyline to return (lat,lng pairs)
+
+    # Try pedestrian network first if available
+    if PEDESTRIAN_NETWORK_LOADED and req.walk_only:
+        polyline, distance = route_walking(req.start_lat, req.start_lng, req.end_lat, req.end_lng)
+        if polyline:
+            total_distance = round(distance)
+            total_duration = calculate_walk_time(total_distance) * 60
+            instructions = [{
+                "type": "walk",
+                "instruction": "Walk along pedestrian path",
+                "distance_m": total_distance,
+                "duration_s": round(total_duration)
+            }]
+            polyline_out = polyline
     
-    if walk_resp.get("routes"):
-        route = walk_resp["routes"][0]
-        total_distance = route["distance"]
-        total_duration = route["duration"]
+    # Fallback to OSRM if pedestrian network route not found
+    if not polyline_out:
+        walk_coords = f"{req.start_lng},{req.start_lat};{req.end_lng},{req.end_lat}"
+        walk_url = f"{OSRM_WALK_URL}{walk_coords}?overview=full&geometries=geojson&steps=true"
+        walk_resp = requests.get(walk_url).json()
         
-        # Parse walking steps
-        for leg in route.get("legs", []):
-            for step in leg.get("steps", []):
-                maneuver = step.get("maneuver", {})
-                instruction = maneuver.get("instruction", "")
-                distance = step.get("distance", 0)
-                duration = step.get("duration", 0)
-                
-                if instruction and distance > 10:  # Skip very short steps
-                    instructions.append({
-                        "type": "walk",
-                        "instruction": instruction,
-                        "distance_m": round(distance),
-                        "duration_s": round(duration)
-                    })
-    
-    # Add nearby stops info
+        if walk_resp.get("routes"):
+            route = walk_resp["routes"][0]
+            total_distance = route["distance"]
+            total_duration = route["duration"]
+            
+            # Parse walking steps
+            for leg in route.get("legs", []):
+                for step in leg.get("steps", []):
+                    maneuver = step.get("maneuver", {})
+                    instruction = maneuver.get("instruction", "")
+                    distance = step.get("distance", 0)
+                    duration = step.get("duration", 0)
+                    
+                    if instruction and distance > 10:  # Skip very short steps
+                        instructions.append({
+                            "type": "walk",
+                            "instruction": instruction,
+                            "distance_m": round(distance),
+                            "duration_s": round(duration)
+                        })
+
+            # Use OSRM's actual routed path
+            coords = route["geometry"]["coordinates"]
+            polyline_out = osrm_polyline(coords)
+
+    # Add nearby stops info only if not in walk-only mode
     transit_options = []
     
-    # Check for MTR near start
-    mtr_start = [s for s in start_stops if s["type"] == "MTR"]
-    if mtr_start:
-        closest_mtr = mtr_start[0]
-        # Calculate realistic walk time: 5 km/h = 83.3 m/min
-        mtr_walk_time = max(1, round(closest_mtr["distance"] / 83.3))
-        mtr_distance_display = f"{closest_mtr['distance'] / 1000:.1f} km" if closest_mtr['distance'] >= 1000 else f"{closest_mtr['distance']}m"
-        mtr_walk_time = calculate_walk_time(closest_mtr["distance"])
-        mtr_distance_display = format_distance(closest_mtr["distance"])
-        transit_options.append({
-            "type": "MTR",
-            "stop_name": closest_mtr["name"],
-            "stop_lat": closest_mtr["lat"],
-            "stop_lng": closest_mtr["lng"],
-            "distance_to_stop_m": closest_mtr["distance"],
-            "walk_time_min": mtr_walk_time,
-            "instruction": f"Walk {mtr_distance_display} ({mtr_walk_time} min) to {closest_mtr['name']}"
-        })
-    
-    # Check for Bus near start
-    bus_start = [s for s in start_stops if s["type"] == "Bus Stop"]
-    if bus_start:
-        closest_bus = bus_start[0]
-        # Calculate realistic walk time: 5 km/h = 83.3 m/min
-        bus_walk_time = calculate_walk_time(closest_bus["distance"])
-        bus_distance_display = format_distance(closest_bus["distance"])
-        transit_options.append({
-            "type": "Bus",
-            "stop_name": closest_bus["name"],
-            "stop_lat": closest_bus["lat"],
-            "stop_lng": closest_bus["lng"],
-            "distance_to_stop_m": closest_bus["distance"],
-            "walk_time_min": bus_walk_time,
-            "instruction": f"Walk {bus_distance_display} ({bus_walk_time} min) to bus stop: {closest_bus['name']}"
-        })
-    
-    # Build full route polyline
-    coords = walk_resp["routes"][0]["geometry"]["coordinates"] if walk_resp.get("routes") else []
+    if not req.walk_only:
+        # Check for MTR near start
+        mtr_start = [s for s in start_stops if s["type"] == "MTR"]
+        if mtr_start:
+            closest_mtr = mtr_start[0]
+            # Calculate realistic walk time: 5 km/h = 83.3 m/min
+            mtr_walk_time = calculate_walk_time(closest_mtr["distance"])
+            mtr_distance_display = format_distance(closest_mtr["distance"])
+            transit_options.append({
+                "type": "MTR",
+                "stop_name": closest_mtr["name"],
+                "stop_lat": closest_mtr["lat"],
+                "stop_lng": closest_mtr["lng"],
+                "distance_to_stop_m": closest_mtr["distance"],
+                "walk_time_min": mtr_walk_time,
+                "instruction": f"Walk {mtr_distance_display} ({mtr_walk_time} min) to {closest_mtr['name']}"
+            })
+        
+        # Check for Bus near start
+        bus_start = [s for s in start_stops if s["type"] == "Bus Stop"]
+        if bus_start:
+            closest_bus = bus_start[0]
+            bus_walk_time = calculate_walk_time(closest_bus["distance"])
+            bus_distance_display = format_distance(closest_bus["distance"])
+            transit_options.append({
+                "type": "Bus",
+                "stop_name": closest_bus["name"],
+                "stop_lat": closest_bus["lat"],
+                "stop_lng": closest_bus["lng"],
+                "distance_to_stop_m": closest_bus["distance"],
+                "walk_time_min": bus_walk_time,
+                "instruction": f"Walk {bus_distance_display} ({bus_walk_time} min) to bus stop: {closest_bus['name']}"
+            })
+        
+        # Check for Ferry near start
+        ferry_start = [s for s in start_stops if s["type"] == "Ferry Pier"]
+        if ferry_start:
+            closest_ferry = ferry_start[0]
+            ferry_walk_time = calculate_walk_time(closest_ferry["distance"])
+            ferry_distance_display = format_distance(closest_ferry["distance"])
+            transit_options.append({
+                "type": "Ferry",
+                "stop_name": closest_ferry["name"],
+                "stop_lat": closest_ferry["lat"],
+                "stop_lng": closest_ferry["lng"],
+                "distance_to_stop_m": closest_ferry["distance"],
+                "walk_time_min": ferry_walk_time,
+                "instruction": f"Walk {ferry_distance_display} ({ferry_walk_time} min) to ferry pier: {closest_ferry['name']}"
+            })
     
     return {
         "distance_m": round(total_distance),
         "duration_s": round(total_duration),
         "walk_distance_m": round(total_distance),
         "walk_duration_min": round(total_duration / 60),
-        "polyline": osrm_polyline(coords),
+        "polyline": polyline_out,
         "instructions": instructions,
         "transit_options": transit_options,
-        "nearby_start_stops": start_stops[:5],
-        "nearby_end_stops": end_stops[:5]
+        "nearby_start_stops": start_stops[:5] if not req.walk_only else [],
+        "nearby_end_stops": end_stops[:5] if not req.walk_only else []
     }
 
 
@@ -518,6 +560,42 @@ async def transit_detail(req: TransitDetailRequest):
                     ]
                 }
                 route_options.append(mtr_bus_option)
+    
+    # ==================== OPTION 5: Ferry (if available) ====================
+    if req.stop_type == "Ferry":
+        # Find ferry piers near destination
+        end_ferry_piers = [s for s in end_stops if s["type"] == "Ferry Pier"]
+        
+        if end_ferry_piers:
+            # Simple ferry option
+            ferry_option = {
+                "option_name": "⛴️ Ferry",
+                "total_duration_min": initial_walk_time + 15 + 5,  # walk + ferry + walk
+                "steps": [
+                    {
+                        "type": "walk",
+                        "action": "Walk to ferry pier",
+                        "instruction": f"Walk {initial_walk_display} ({initial_walk_time} min) to {req.stop_name}",
+                        "distance_m": initial_walk_dist,
+                        "duration_min": initial_walk_time
+                    },
+                    {
+                        "type": "ferry",
+                        "action": "Board ferry",
+                        "instruction": f"Take ferry from {req.stop_name}",
+                        "get_off_at": end_ferry_piers[0]["name"],
+                        "duration_min": 15
+                    },
+                    {
+                        "type": "walk",
+                        "action": "Walk to destination",
+                        "instruction": f"Walk {round(end_ferry_piers[0]['distance'])}m to destination",
+                        "distance_m": round(end_ferry_piers[0]["distance"]),
+                        "duration_min": 5
+                    }
+                ]
+            }
+            route_options.append(ferry_option)
     
     return {
         "route_options": route_options,

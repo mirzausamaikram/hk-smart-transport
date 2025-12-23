@@ -20,14 +20,13 @@
   let endName = "";
   let markers: Marker[] = [];
   let polyline: LatLng[] = [];
-  let distance = 0;
-  let duration = 0;
   let instructions: Instruction[] = [];
   let transitOptions: TransitOption[] = [];
   let showInstructions = false;
   let selectedTransit: TransitOption | null = null;
   let routeOptions: RouteOption[] = [];
   let selectedRouteOption: RouteOption | null = null;
+  let walkOnly = false;
 
   // Constants
   const API_BASE = "http://127.0.0.1:8000/api/route";
@@ -43,8 +42,14 @@
     const toLat = params.get('toLat');
     const toLng = params.get('toLng');
     const toName = params.get('toName');
+    const walkOnlyParam = params.get('walkOnly');
     const fromParam = params.get('from');
     const toParam = params.get('to');
+
+    // Walk-only mode: hide transit sections and focus on walking
+    if (walkOnlyParam && (walkOnlyParam === '1' || walkOnlyParam.toLowerCase() === 'true')) {
+      walkOnly = true;
+    }
 
     if (fromLat && fromLng) {
       const lat = parseFloat(fromLat);
@@ -137,6 +142,9 @@
       endName = end.name;
     }
     updateMarkers();
+    if (start && end) {
+      getRoute();
+    }
   }
 
   // GET ROUTE WITH ENHANCED INSTRUCTIONS
@@ -154,7 +162,8 @@
           start_lat: start.lat,
           start_lng: start.lng,
           end_lat: end.lat,
-          end_lng: end.lng
+          end_lng: end.lng,
+          walk_only: walkOnly
         })
       });
 
@@ -169,11 +178,13 @@
         return;
       }
 
-      polyline = data.polyline.map(([lat, lng]: [number, number]) => ({ lat, lng }));
-      distance = data.distance_m;
-      duration = data.duration_s;
+      polyline = data.polyline.map(([lat, lng, style]: [number, number, string]) => ({
+        lat,
+        lng,
+        style: (style === 'dotted' ? 'dotted' : 'solid') as 'dotted' | 'solid'
+      }));
       instructions = data.instructions || [];
-      transitOptions = data.transit_options || [];
+      transitOptions = walkOnly ? [] : (data.transit_options || []);
       showInstructions = true;
 
       updateMarkers();
@@ -277,23 +288,16 @@
     on:mapclick={handleMapClick}
   />
 
-  {#if distance}
-    <div class="stats">
-      <p><b>Distance:</b> {Math.round(distance)} m</p>
-      <p><b>Duration:</b> {Math.round(duration / 60)} min walk</p>
-    </div>
-  {/if}
-
   {#if showInstructions && (transitOptions.length > 0 || instructions.length > 0)}
     <div class="instructions-panel">
-      <h2>🗺️ Route Instructions</h2>
+      <h2>{walkOnly ? '🚶 Walking Route' : '🗺️ Route Instructions'}</h2>
       
-      {#if transitOptions.length > 0}
+      {#if !walkOnly && transitOptions.length > 0}
         <div class="transit-section">
           <h3>🚇 Nearby Public Transport</h3>
           {#each transitOptions as option}
             <button class="transit-option" on:click={() => getTransitDetails(option)}>
-              <div class="transit-icon">{option.type === 'MTR' ? '🚇' : '🚌'}</div>
+              <div class="transit-icon">{option.type === 'MTR' ? '🚇' : option.type === 'Ferry' ? '⛴️' : '🚌'}</div>
               <div class="transit-details">
                 <strong>{option.stop_name}</strong>
                 <p>{option.instruction}</p>
@@ -304,7 +308,7 @@
         </div>
       {/if}
       
-      {#if routeOptions.length > 0 && selectedTransit}
+      {#if !walkOnly && routeOptions.length > 0 && selectedTransit}
         <div class="route-options-section">
           <h3>🛣️ Route Options via {selectedTransit.stop_name}</h3>
           <div class="options-grid">
@@ -324,6 +328,7 @@
                       {#if step.type === 'walk'}🚶
                       {:else if step.type === 'bus'}🚌
                       {:else if step.type === 'mtr'}🚇
+                      {:else if step.type === 'ferry'}⛴️
                       {:else if step.type === 'transfer'}🔄
                       {/if}
                     </span>
@@ -338,7 +343,7 @@
         </div>
       {/if}
       
-      {#if selectedRouteOption}
+      {#if !walkOnly && selectedRouteOption}
         <div class="detailed-route">
           <h3>📍 {selectedRouteOption.option_name}</h3>
           <p class="route-duration">Total Time: <strong>{selectedRouteOption.total_duration_min} minutes</strong></p>
@@ -350,6 +355,7 @@
                   {#if step.type === 'walk'}🚶
                   {:else if step.type === 'bus'}🚌
                   {:else if step.type === 'mtr'}🚇
+                  {:else if step.type === 'ferry'}⛴️
                   {:else if step.type === 'transfer'}🔄
                   {/if}
                   {step.action}
@@ -504,17 +510,24 @@
     50% { transform: scale(1.2); opacity: 1; }
   }
   .inputs {
-    display: flex;
-    gap: 8px;
+    display: grid;
+    grid-template-columns: auto 1fr 1fr auto;
+    gap: 10px;
     margin-bottom: 10px;
-    align-items: center;
+    align-items: stretch;
   }
 
   .inputs button {
     white-space: nowrap;
     padding: 12px 20px;
     min-width: fit-content;
+    height: 48px;
+    align-self: stretch;
   }
+
+  /* Make search bars expand equally and match button height */
+  .inputs :global(.search-wrapper) { max-width: none; width: 100%; }
+  .inputs :global(.input-wrap) { height: 48px; }
   .stats {
     margin-top: 20px;
     background: #eef3ff;
