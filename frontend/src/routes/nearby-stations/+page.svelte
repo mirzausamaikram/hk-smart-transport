@@ -1,5 +1,6 @@
 <script lang="ts">
   import NearbyMap from "$lib/components/NearbyMap.svelte";
+  import { onMount } from "svelte";
 
   type Station = {
     name: string;
@@ -15,18 +16,55 @@
   let loading = false;
   let searchRadius = 800; // meters
 
+  // Geolocation permission tracking
+  let geoStatus: "idle" | "granted" | "prompt" | "denied" = "idle";
+
   let activeType = "ALL";
   const types = ["ALL", "Bus Stop", "MTR", "Ferry Pier", "Minibus", "Taxi"];
 
   function useMyLocation() {
-    navigator.geolocation.getCurrentPosition((pos) => {
-      center = {
-        lat: pos.coords.latitude,
-        lng: pos.coords.longitude
-      };
-      fetchNearby();
-    });
+    if (!("geolocation" in navigator)) {
+      geoStatus = "denied";
+      return;
+    }
+
+    navigator.geolocation.getCurrentPosition(
+      (pos) => {
+        center = {
+          lat: pos.coords.latitude,
+          lng: pos.coords.longitude
+        };
+        geoStatus = "granted";
+        fetchNearby();
+      },
+      (err) => {
+        // Permission denied or other error
+        geoStatus = err.code === 1 ? "denied" : "prompt";
+        console.warn("Geolocation error:", err);
+      },
+      { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 }
+    );
   }
+
+  onMount(async () => {
+    try {
+      // Detect geolocation permission state and prompt if possible
+      if ((navigator as any).permissions && (navigator as any).permissions.query) {
+        const result = await (navigator as any).permissions.query({ name: "geolocation" });
+        geoStatus = (result.state as "granted" | "prompt" | "denied") || "idle";
+        if (geoStatus !== "denied") {
+          // Will either auto-get or show a browser prompt
+          useMyLocation();
+        }
+      } else {
+        // Fallback: attempt to request, browser will prompt
+        useMyLocation();
+      }
+    } catch (e) {
+      // Silent fallback
+      console.warn("Permissions check failed:", e);
+    }
+  });
 
   // ✅ FINAL FIXED FETCH FUNCTION
   async function fetchNearby() {
@@ -90,6 +128,18 @@
 <div class="card">
   <h1>Nearby Stations</h1>
 
+  {#if geoStatus === "denied"}
+    <div class="permission-banner">
+      <span>Location access is blocked. Enable it in browser settings or click on the map to set a point.</span>
+      <button class="retry" on:click={useMyLocation}>Retry</button>
+    </div>
+  {:else if geoStatus === "prompt"}
+    <div class="permission-banner">
+      <span>Allow location access to pin your current position, or click on the map to choose.</span>
+      <button class="retry" on:click={useMyLocation}>Allow</button>
+    </div>
+  {/if}
+
   <div class="controls">
     <button on:click={useMyLocation}>📍 Use My Location</button>
     <button on:click={fetchNearby}>🔍 Search Nearby</button>
@@ -139,6 +189,26 @@
     width: 900px;
     margin: auto;
     box-shadow: 0 4px 18px rgba(0,0,0,0.06);
+  }
+  .permission-banner {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    background: #f1f5f9;
+    border: 1px solid #e2e8f0;
+    color: #334155;
+    padding: 10px 12px;
+    border-radius: 10px;
+    margin-bottom: 12px;
+  }
+  .permission-banner .retry {
+    padding: 6px 12px;
+    border: none;
+    border-radius: 8px;
+    background: #334155;
+    color: white;
+    cursor: pointer;
   }
   .controls {
     display: flex;

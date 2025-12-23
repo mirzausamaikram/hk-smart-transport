@@ -44,6 +44,7 @@
         stationLayer = L.markerClusterGroup();
         stationLayer.addTo(map);
 
+        // Primary Leaflet click handler
         map.on("click", (e: any) => {
             dispatch("mapclick", {
                 lat: e.latlng.lat,
@@ -51,6 +52,24 @@
             });
             setUserMarker(e.latlng.lat, e.latlng.lng);
         });
+
+        // Fallback: listen on container to convert clicks to lat/lng
+        // Ensures selection works even if some layer swallows Leaflet's click
+        if (mapDiv) {
+            const onContainerClick = (ev: MouseEvent) => {
+                try {
+                    const pt = map.mouseEventToContainerPoint(ev);
+                    const latlng = map.containerPointToLatLng(pt);
+                    dispatch("mapclick", { lat: latlng.lat, lng: latlng.lng });
+                    setUserMarker(latlng.lat, latlng.lng);
+                } catch {}
+            };
+            mapDiv.addEventListener("click", onContainerClick);
+            // remove on destroy
+            onDestroy(() => {
+                mapDiv?.removeEventListener("click", onContainerClick);
+            });
+        }
 
         setUserMarker(center.lat, center.lng);
     });
@@ -131,5 +150,6 @@
     :global(.leaflet-container) {
         height: 100%;
         width: 100%;
+        cursor: crosshair;
     }
 </style>
