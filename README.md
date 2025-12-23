@@ -38,7 +38,7 @@ A comprehensive Hong Kong public transportation app providing real-time route pl
 
 1. **Clone the repository**
 ```bash
-git clone https://github.com/YOUR_USERNAME/hk-smart-transport.git
+git clone https://github.com/mirzausamaikram/hk-smart-transport.git
 cd hk-smart-transport
 ```
 
