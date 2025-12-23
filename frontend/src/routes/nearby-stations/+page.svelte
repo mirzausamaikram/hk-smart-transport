@@ -1,6 +1,7 @@
 <script lang="ts">
   import NearbyMap from "$lib/components/NearbyMap.svelte";
   import { onMount } from "svelte";
+  import { goto } from "$app/navigation";
 
   type Station = {
     name: string;
@@ -123,6 +124,22 @@
     center = { lat: e.detail.lat, lng: e.detail.lng };
     fetchNearby();
   }
+
+  function getDirections(station: Station) {
+    // Navigate to route planner with pre-filled origin and destination
+    const params = new URLSearchParams({
+      from: `${center.lat},${center.lng}`,
+      to: station.name,
+      mode: 'walk' // Default to walking directions
+    });
+    goto(`/route-planner?${params.toString()}`);
+  }
+
+  function openInMaps(station: Station) {
+    // Open in Google Maps with directions from current location
+    const url = `https://www.google.com/maps/dir/?api=1&origin=${center.lat},${center.lng}&destination=${station.lat},${station.lng}&travelmode=walking`;
+    window.open(url, '_blank');
+  }
 </script>
 
 <div class="card">
@@ -178,8 +195,20 @@
   <ul class="list">
       {#each stations as s (s.name)}
           <li>
-              <b>{s.type}</b> — {s.name}<br />
-              {Math.round(s.distance)} m • {Math.round(s.walk_min)} min walk
+              <div class="station-info">
+                  <div class="station-details">
+                      <b>{s.type}</b> — {s.name}<br />
+                      <span class="distance">{Math.round(s.distance)} m • {Math.round(s.walk_min)} min walk</span>
+                  </div>
+                  <div class="station-actions">
+                      <button class="action-btn" on:click={() => getDirections(s)} title="Get directions in Route Planner">
+                          🚶 Directions
+                      </button>
+                      <button class="action-btn maps" on:click={() => openInMaps(s)} title="Open in Google Maps">
+                          🗺️ Maps
+                      </button>
+                  </div>
+              </div>
           </li>
       {/each}
   </ul>
@@ -249,6 +278,56 @@
   }
   .list {
     line-height: 1.5rem;
+  }
+  .list li {
+    margin-bottom: 12px;
+    padding: 12px;
+    background: #f8fafc;
+    border-radius: 8px;
+    border: 1px solid #e2e8f0;
+    transition: all 0.2s;
+  }
+  .list li:hover {
+    background: #f1f5f9;
+    border-color: #cbd5e1;
+  }
+  .station-info {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 12px;
+  }
+  .station-details {
+    flex: 1;
+  }
+  .distance {
+    color: #64748b;
+    font-size: 0.9em;
+  }
+  .station-actions {
+    display: flex;
+    gap: 6px;
+    flex-shrink: 0;
+  }
+  .action-btn {
+    padding: 6px 12px;
+    font-size: 0.85em;
+    background: #3b82f6;
+    border-radius: 6px;
+    white-space: nowrap;
+    transition: all 0.2s;
+  }
+  .action-btn:hover {
+    background: #2563eb;
+    transform: translateY(-1px);
+    box-shadow: 0 2px 8px rgba(59, 130, 246, 0.3);
+  }
+  .action-btn.maps {
+    background: #10b981;
+  }
+  .action-btn.maps:hover {
+    background: #059669;
+    box-shadow: 0 2px 8px rgba(16, 185, 129, 0.3);
   }
   .hint {
     color: #64748b;
