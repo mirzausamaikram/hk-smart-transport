@@ -151,8 +151,24 @@
   }
 </script>
 
-<div class="card">
-  <h1>Route Planner</h1>
+<div class="planner-shell">
+  <div class="planner-bg">
+    <div class="planner-routes">
+      <svg viewBox="0 0 1920 800" preserveAspectRatio="none">
+        <path class="route-line red" d="M0,180 Q480,140 960,180 T1920,180" />
+        <path class="route-line blue" d="M0,360 Q480,420 960,360 T1920,360" />
+        <path class="route-line green" d="M0,540 Q480,500 960,540 T1920,540" />
+        <circle class="station" cx="220" cy="180" r="6" />
+        <circle class="station" cx="640" cy="360" r="6" />
+        <circle class="station" cx="1060" cy="540" r="6" />
+        <circle class="station" cx="1480" cy="360" r="6" />
+      </svg>
+    </div>
+    <div class="planner-grid"></div>
+  </div>
+
+  <div class="card">
+    <h1>Route Planner</h1>
 
   <div class="inputs">
 
@@ -305,6 +321,7 @@
     </div>
   {/if}
 </div>
+</div>
 <style>
   .card {
     background: white;
@@ -313,6 +330,107 @@
     width: 85%;
     border-radius: 14px;
     box-shadow: 0px 0px 12px rgba(0,0,0,0.15);
+    position: relative;
+    z-index: 1;
+  }
+
+  .planner-shell {
+    position: relative;
+    padding: 40px 0 60px;
+    background: radial-gradient(circle at 5% 30%, rgba(59, 130, 246, 0.22), transparent 38%),
+      radial-gradient(circle at 95% 30%, rgba(236, 72, 153, 0.20), transparent 38%),
+      radial-gradient(circle at 50% 95%, rgba(16, 185, 129, 0.14), transparent 32%),
+      linear-gradient(135deg, #f5f7fb 0%, #eef2ff 45%, #f8fafc 100%);
+    overflow: hidden;
+    isolation: isolate;
+  }
+
+  .planner-bg {
+    position: absolute;
+    inset: 0;
+    overflow: hidden;
+    z-index: 0;
+    mix-blend-mode: multiply;
+  }
+
+  .planner-shell::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: repeating-linear-gradient(
+      120deg,
+      rgba(59, 130, 246, 0.07) 0,
+      rgba(59, 130, 246, 0.07) 12px,
+      transparent 12px,
+      transparent 24px
+    );
+    opacity: 0.35;
+    pointer-events: none;
+    mix-blend-mode: soft-light;
+    z-index: 0;
+  }
+
+  .planner-shell::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: radial-gradient(circle at -10% 50%, rgba(59, 130, 246, 0.28), transparent 34%),
+      radial-gradient(circle at 110% 50%, rgba(236, 72, 153, 0.25), transparent 34%),
+      linear-gradient(180deg, rgba(15, 23, 42, 0.04), transparent 60%);
+    pointer-events: none;
+    z-index: 0;
+  }
+
+  .planner-grid {
+    position: absolute;
+    inset: 0;
+    background-image:
+      linear-gradient(rgba(15, 23, 42, 0.06) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(15, 23, 42, 0.06) 1px, transparent 1px);
+    background-size: 80px 80px;
+    filter: blur(0.1px);
+    opacity: 0.4;
+  }
+
+  .planner-routes {
+    position: absolute;
+    inset: 0;
+    opacity: 0.25;
+    pointer-events: none;
+  }
+
+  .planner-routes svg {
+    width: 100%;
+    height: 100%;
+  }
+
+  .route-line {
+    fill: none;
+    stroke-width: 4;
+    stroke-linecap: round;
+    stroke-dasharray: 8 10;
+    animation: dashFlow 18s linear infinite;
+  }
+
+  .route-line.red { stroke: #ef4444; animation-delay: 0s; }
+  .route-line.blue { stroke: #3b82f6; animation-delay: 2s; }
+  .route-line.green { stroke: #10b981; animation-delay: 4s; }
+
+  .station {
+    fill: #f8fafc;
+    stroke: #1e293b;
+    stroke-width: 2;
+    animation: stationPulse 2.8s ease-in-out infinite;
+  }
+
+  @keyframes dashFlow {
+    0% { stroke-dashoffset: 0; }
+    100% { stroke-dashoffset: 200; }
+  }
+
+  @keyframes stationPulse {
+    0%, 100% { transform: scale(1); opacity: 0.9; }
+    50% { transform: scale(1.2); opacity: 1; }
   }
   .inputs {
     display: flex;

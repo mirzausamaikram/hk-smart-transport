@@ -1,9 +1,39 @@
 <style>
+  @keyframes driftDown {
+    from {
+      background-position: 0 0, 0 0;
+    }
+    to {
+      background-position: 0 600px, 0 800px;
+    }
+  }
+
   :global(body) {
     font-family: "Inter", -apple-system, BlinkMacSystemFont, sans-serif;
-    background: #f8fafc;
+    background: radial-gradient(circle at 20% 20%, rgba(59, 130, 246, 0.08), transparent 30%),
+      radial-gradient(circle at 80% 10%, rgba(236, 72, 153, 0.08), transparent 32%),
+      radial-gradient(circle at 50% 80%, rgba(16, 185, 129, 0.08), transparent 28%),
+      linear-gradient(135deg, #f8fafc 0%, #e2e8f0 50%, #f8fafc 100%);
+    background-attachment: fixed;
     margin: 0;
     padding: 0;
+    position: relative;
+    overflow-x: hidden;
+  }
+
+  :global(body)::after {
+    content: "";
+    position: fixed;
+    inset: 0;
+    pointer-events: none;
+    background-image:
+      radial-gradient(2px 2px at 20% 20%, rgba(255, 255, 255, 0.45), transparent 55%),
+      radial-gradient(2px 2px at 80% 30%, rgba(255, 255, 255, 0.35), transparent 55%);
+    background-repeat: repeat;
+    background-size: 220px 220px, 320px 320px;
+    animation: driftDown 18s linear infinite;
+    opacity: 0.5;
+    z-index: 0;
   }
 
   nav {
@@ -32,8 +62,7 @@
     border-bottom-color: #3b82f6;
   }
 
-  nav a:active,
-  nav a.active {
+  nav a:active {
     color: #fff;
     background: rgba(59, 130, 246, 0.2);
     border-bottom-color: #60a5fa;
