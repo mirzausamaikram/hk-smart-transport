@@ -1,48 +1,34 @@
 <style>
-  nav {
-    background: #0f172a;
-    padding: 12px 20px;
-    display: flex;
-    gap: 20px;
-  }
-
-  nav a {
-    color: #e2e8f0;
-    text-decoration: none;
-    font-size: 1rem;
-  }
-
-  nav a:hover {
-    color: white;
-  }
-
-  main {
-    max-width: 900px;
-    margin: 20px auto;
-    padding: 0 15px;
-  }
   :global(body) {
-    font-family: "Inter", sans-serif;
-    background: #f3f4f6;
+    font-family: "Inter", -apple-system, BlinkMacSystemFont, sans-serif;
+    background: #f8fafc;
+    margin: 0;
+    padding: 0;
   }
 
   nav {
-    background: #0f172a;
-    padding: 14px 20px;
+    background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%);
+    padding: 0;
     display: flex;
-    gap: 25px;
-    align-items: center;
+    gap: 0;
+    align-items: stretch;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.15);
   }
 
   nav a {
     color: #cbd5e1;
     text-decoration: none;
-    font-size: 1rem;
+    font-size: 0.95rem;
     font-weight: 500;
+    padding: 18px 28px;
+    transition: all 0.2s ease;
+    border-bottom: 3px solid transparent;
   }
 
   nav a:hover {
     color: #fff;
+    background: rgba(255,255,255,0.08);
+    border-bottom-color: #3b82f6;
   }
 
   main {
