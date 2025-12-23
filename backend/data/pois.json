@@ -1,0 +1,94 @@
+[
+  {
+    "name": "Tsim Sha Tsui Promenade",
+    "type": "sightseeing",
+    "lat": 22.2930,
+    "lng": 114.1736,
+    "description": "Harbourfront promenade with great views of Victoria Harbour and the skyline.",
+    "avg_cost_hkd": 0
+  },
+  {
+    "name": "Man Mo Temple",
+    "type": "culture",
+    "lat": 22.2870,
+    "lng": 114.1400,
+    "description": "Historic temple dedicated to literature and martial arts gods.",
+    "avg_cost_hkd": 0
+  },
+  {
+    "name": "PMQ (Design Hub)",
+    "type": "shopping",
+    "lat": 22.2833,
+    "lng": 114.1499,
+    "description": "Creative hub for local designers, great for unique souvenirs.",
+    "avg_cost_hkd": 100
+  },
+  {
+    "name": "M+ Museum",
+    "type": "museum",
+    "lat": 22.2937,
+    "lng": 114.1719,
+    "description": "Museum of visual culture in the West Kowloon Cultural District.",
+    "avg_cost_hkd": 150
+  },
+  {
+    "name": "Central–Mid-Levels Escalator Area",
+    "type": "sightseeing",
+    "lat": 22.2810,
+    "lng": 114.1588,
+    "description": "Vibrant neighborhood with cafés, bars, and shops.",
+    "avg_cost_hkd": 50
+  },
+  {
+    "name": "Temple Street Night Market",
+    "type": "nightlife",
+    "lat": 22.3043,
+    "lng": 114.1707,
+    "description": "Famous street market with food stalls and live fortune tellers.",
+    "avg_cost_hkd": 80
+  },
+  {
+    "name": "Victoria Peak",
+    "type": "sightseeing",
+    "lat": 22.2758,
+    "lng": 114.1455,
+    "description": "Panoramic views of Hong Kong — perfect for sunset.",
+    "avg_cost_hkd": 0
+  },
+  {
+    "name": "Lan Kwai Fong",
+    "type": "nightlife",
+    "lat": 22.2819,
+    "lng": 114.1540,
+    "description": "Popular nightlife area full of bars and restaurants.",
+    "avg_cost_hkd": 200
+  },
+  {
+    "name": "Star Ferry Pier",
+    "type": "sightseeing",
+    "lat": 22.2938,
+    "lng": 114.1616,
+    "description": "Iconic short ferry ride across Victoria Harbour.",
+    "avg_cost_hkd": 3
+  },
+  {
+    "name": "Hong Kong Museum of History",
+    "type": "museum",
+    "lat": 22.3024,
+    "lng": 114.1856,
+    "description": "Exhibits covering the history and culture of Hong Kong.",
+    "avg_cost_hkd": 25
+  }
+  ,
+  {
+    "name": "Kowloon Masjid and Islamic Centre",
+    "type": "religious",
+    "lat": 22.3037,
+    "lng": 114.1740,
+    "description": "One of Hong Kong's largest mosques located near Tsim Sha Tsui.",
+    "avg_cost_hkd": 0,
+    "opening_hours": "Daily 05:00-22:00",
+    "entry_fee": 0,
+    "visit_note": "Non-Muslims may visit outside prayer times; respectful clothing required."
+  }
+]

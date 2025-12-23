@@ -1,388 +1,581 @@
 <script lang="ts">
-  import { onMount } from 'svelte';
-  import { goto } from '$app/navigation';
-  import { searchRoute } from '$lib/api';
-  import MapComponent from '$lib/components/MapComponents.svelte'; 
+  import SearchBar from "$lib/components/SearchBar.svelte";
+  import LeafletMap from "$lib/components/LeafletMap.svelte";
 
-  let start = '';
-  let end = '';
-  let preference: 'fastest' | 'cheapest' | 'fewest' = 'fastest';
-  let transportMode: 'transit' | 'bus' | 'mtr' | 'taxi' = 'transit'; 
-  let result: any = null;
-  let loading = false;
-  let geolocating = true;
-  let mapMarkers: {lat:number; lng:number; title:string}[] = [];
-  let polyline: string | null = null;
-  let mapLat: number = 22.3029;
-  let mapLng: number = 114.1772;
-  let mapZoom: number = 12;
+  // Types
+  type Place = { name: string; lat: number; lng: number };
+  type LatLng = { lat: number; lng: number };
+  type Marker = { lat: number; lng: number; title: string; color: string };
+  type Instruction = { type: string; instruction: string; distance_m: number; duration_s?: number };
+  type TransitOption = { type: string; stop_name: string; instruction: string; stop_lat: number; stop_lng: number };
+  type RouteStep = { type: string; instruction: string; distance_m?: number; duration_min: number; action?: string; bus_number?: string; get_off_at?: string; exit_info?: string };
+  type RouteOption = { option_name: string; total_duration_min: number; steps: RouteStep[] };
 
-  async function fetchUserLocation() {
-    if (!navigator.geolocation) {
-      console.warn('Geolocation not supported by browser. Falling back to default.');
-      start = 'Central, Hong Kong'; 
-      geolocating = false;
-      return;
-    }
+  // State
+  let start: Place | null = null;
+  let end: Place | null = null;
+  let startName = "";
+  let endName = "";
+  let markers: Marker[] = [];
+  let polyline: LatLng[] = [];
+  let distance = 0;
+  let duration = 0;
+  let instructions: Instruction[] = [];
+  let transitOptions: TransitOption[] = [];
+  let showInstructions = false;
+  let selectedTransit: TransitOption | null = null;
+  let routeOptions: RouteOption[] = [];
+  let selectedRouteOption: RouteOption | null = null;
 
+  // Constants
+  const API_BASE = "http://127.0.0.1:8000/api/route";
+
+  // Update markers on map
+  function updateMarkers() {
+    markers = [];
+    if (start) markers.push({ ...start, title: "Start", color: "#4CAF50" });
+    if (end) markers.push({ ...end, title: "Destination", color: "#FF5722" });
+  }
+
+  // Use My Location as start
+  function useMyLocation() {
     navigator.geolocation.getCurrentPosition(
       pos => {
-        const currentLat = pos.coords.latitude;
-        const currentLng = pos.coords.longitude;
-        
-        start = `${currentLat},${currentLng}`;
-        mapLat = currentLat;
-        mapLng = currentLng;
-        mapZoom = 14;
-        
-        mapMarkers = [{ 
-            lat: currentLat, 
-            lng: currentLng, 
-            title: 'Your Current Location' 
-        }];
-        
-        geolocating = false;
+        start = {
+          name: "My Location",
+          lat: pos.coords.latitude,
+          lng: pos.coords.longitude
+        };
+        startName = "My Location";
+        updateMarkers();
       },
-      err => {
-        console.error('Failed to get location:', err);
-        start = 'Central, Hong Kong'; // Fallback address
-        geolocating = false;
-      },
-      { enableHighAccuracy: false, timeout: 5000, maximumAge: 0 }
+      error => {
+        alert("Could not get your location. Please enable location services.");
+        console.error("Geolocation error:", error);
+      }
     );
   }
 
-  onMount(() => {
-    fetchUserLocation();
-  });
-
-  async function handleSubmit() {
-    loading = true;
-    polyline = null;
-    
-    try { 
-      result = await searchRoute({ start, end, preference, transportMode }); 
-      
-      const route = result.routes[0];
-      const startLoc = route.legs[0].start_location;
-      const endLoc = route.legs[route.legs.length - 1].end_location;
-
-      mapMarkers = [ 
-        { lat: startLoc.lat, lng: startLoc.lng, title: `Start: ${start}` }, 
-        { lat: endLoc.lat, lng: endLoc.lng, title: `End: ${end}` } 
-      ]; 
-      
-      polyline = route.polyline;
-      
-      if (google?.maps?.geometry && polyline) {
-        const bounds = new google.maps.LatLngBounds();
-        const pathCoords = google.maps.geometry.encoding.decodePath(polyline);
-        
-        pathCoords.forEach((coord: any) => {
-          bounds.extend(coord);
-        });
-        
-        mapLat = bounds.getCenter().lat();
-        mapLng = bounds.getCenter().lng();
-        mapZoom = 13; 
-      } else {
-        if (mapMarkers.length === 2) {
-          mapLat = (mapMarkers[0].lat + mapMarkers[1].lat) / 2;
-          mapLng = (mapMarkers[0].lng + mapMarkers[1].lng) / 2;
-          mapZoom = 13;
-        }
-      }
-      
-    } catch (e) { 
-      console.error("Route search failed:", e);
-      alert('Route search failed. Check console for details.');
-    } finally { 
-      loading = false;
-    } 
+  // MAP CLICK → set start first, then end
+  function handleMapClick(e: CustomEvent<{ lat: number; lng: number }>) {
+    if (!start) {
+      start = { name: "Picked Location", lat: e.detail.lat, lng: e.detail.lng };
+      startName = start.name;
+    } else {
+      end = { name: "Picked Location", lat: e.detail.lat, lng: e.detail.lng };
+      endName = end.name;
+    }
+    updateMarkers();
   }
-  function handleMapClick(e: CustomEvent) {
-    const latLng: google.maps.LatLng = e.detail;
-    const lat = latLng.lat();
-    const lng = latLng.lng();
-    end = `${lat},${lng}`;
-    mapMarkers.push({ lat, lng, title: 'End Location' });
+
+  // GET ROUTE WITH ENHANCED INSTRUCTIONS
+  async function getRoute() {
+    if (!start || !end) {
+      alert("Select start and destination first!");
+      return;
+    }
+
+    try {
+      const res = await fetch(`${API_BASE}/enhanced`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          start_lat: start.lat,
+          start_lng: start.lng,
+          end_lat: end.lat,
+          end_lng: end.lng
+        })
+      });
+
+      if (!res.ok) {
+        throw new Error(`HTTP error! status: ${res.status}`);
+      }
+
+      const data = await res.json();
+
+      if (!Array.isArray(data.polyline)) {
+        alert("Backend returned invalid polyline.");
+        return;
+      }
+
+      polyline = data.polyline.map(([lat, lng]: [number, number]) => ({ lat, lng }));
+      distance = data.distance_m;
+      duration = data.duration_s;
+      instructions = data.instructions || [];
+      transitOptions = data.transit_options || [];
+      showInstructions = true;
+
+      updateMarkers();
+    } catch (error) {
+      console.error("Error fetching route:", error);
+      alert("Failed to get route. Please try again.");
+    }
   }
   
-  const goToItinerary = () => goto('/routes/Itinerary');
-  const goToNearby = () => goto('/nearby');
+  // Get detailed transit route instructions
+  async function getTransitDetails(option: TransitOption) {
+    selectedTransit = option;
+    routeOptions = [];
+    selectedRouteOption = null;
+    
+    try {
+      const res = await fetch(`${API_BASE}/transit-detail`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          start_lat: start!.lat,
+          start_lng: start!.lng,
+          end_lat: end!.lat,
+          end_lng: end!.lng,
+          stop_name: option.stop_name,
+          stop_type: option.type,
+          stop_lat: option.stop_lat,
+          stop_lng: option.stop_lng
+        })
+      });
+      
+      if (!res.ok) {
+        throw new Error(`HTTP error! status: ${res.status}`);
+      }
+      
+      const data = await res.json();
+      routeOptions = data.route_options || [];
+    } catch (error) {
+      console.error("Error fetching transit details:", error);
+      alert("Failed to get transit details. Please try again.");
+    }
+  }
+  
+  function selectRouteOption(option: RouteOption) {
+    selectedRouteOption = option;
+  }
 </script>
 
-<h1>Route Planner</h1>
+<div class="card">
+  <h1>Route Planner</h1>
 
-<div class="nav-sub-bar">
-    <button on:click={goToNearby} class="nav-button">
-        📍 Nearby Station Finder
-    </button>
-    <button on:click={goToItinerary} class="nav-button">
-        🗺️ Make Itinerary
-    </button>
-</div>
+  <div class="inputs">
 
-<div class="route-content">
-  <div class="form-section card">
-    <form on:submit|preventDefault={handleSubmit}>
-      <h2>Plan Your Route</h2>
-      <label>
-        Start Location:
-        <input 
-          bind:value={start}
-          required 
-          placeholder="e.g. Central (or your current location)" 
-          disabled={geolocating}
-        />
-        {#if geolocating}
-          <small class="loading-text">Fetching current location...</small>
-        {/if}
-      </label>
-      <br/><br/>
-      <label>
-        End Location:
-        <input bind:value={end} required placeholder="Where do you want to go?" />
-      </label>
-      <br/><br/>
-      
-      <div class="mode-options">
-        <label>
-            Transport Mode:
-            <select bind:value={transportMode}>
-                <option value="transit">Public Transport (All)</option>
-                <option value="mtr">MTR Only</option>
-                <option value="bus">Bus / Minibus Only</option>
-                <option value="taxi">Taxi / Car</option>
-            </select>
-        </label>
-        
-        <label>
-          Preference:
-          <select bind:value={preference}>
-            <option value="fastest">Fastest</option>
-            <option value="cheapest">Cheapest</option>
-            <option value="fewest">Fewest transfers</option>
-          </select>
-        </label>
-      </div>
+    <button on:click={useMyLocation}>📍 Use My Location</button>
+      <!-- START -->
+      <SearchBar
+        placeholder="Start location..."
+        bind:value={startName}
+        on:select={(e: CustomEvent<Place>) => {
+          start = e.detail;
+          startName = start.name;
+          updateMarkers();
+        }}
+      />
 
-      <br/>
-      <button type="submit" disabled={loading || geolocating || !end.trim()}>
-        {#if loading}
-          Searching...
-        {:else}
-          Find Route
-        {/if}
-      </button>
-    </form>
-    
-    {#if result}
-      <div class="results-card">
-        <h3>Optimal Route Found</h3>
-        <p class="summary-line">
-            Time: <span class="data-highlight">{result.routes[0].time}</span> |
-            Fare: <span class="data-highlight">HK${result.routes[0].fare}</span> |
-            Transfers: <span class="data-highlight">{result.routes[0].transfers}</span>
-        </p> 
-        <h4>Step-by-Step Instructions:</h4>
-        <ol class="steps-list">
-          {#each result.routes[0].steps as step}
-            <li>{step.instruction}</li>
-          {/each}
-        </ol>
-      </div>
-    {/if}
+      <!-- END -->
+      <SearchBar
+        placeholder="Destination..."
+        bind:value={endName}
+        on:select={(e: CustomEvent<Place>) => {
+          end = e.detail;
+          endName = end.name;
+          updateMarkers();
+        }}
+      />
+
+
+    <button on:click={getRoute}>Get Route</button>
   </div>
 
-  <div class="map-section">
-    <h3>Interactive Route Map</h3>
-    <div class="map-wrapper">
-        <MapComponent 
-          lat={mapLat} 
-          lng={mapLng} 
-          zoom={mapZoom} 
-          markers={mapMarkers} 
-          polyline={polyline} 
-          on:mapclick={handleMapClick} 
-        />
+  <LeafletMap
+    {markers}
+    {polyline}
+    center={{ lat: 22.3027, lng: 114.1772 }}
+    on:mapclick={handleMapClick}
+  />
+
+  {#if distance}
+    <div class="stats">
+      <p><b>Distance:</b> {Math.round(distance)} m</p>
+      <p><b>Duration:</b> {Math.round(duration / 60)} min walk</p>
     </div>
-  </div>
+  {/if}
+
+  {#if showInstructions && (transitOptions.length > 0 || instructions.length > 0)}
+    <div class="instructions-panel">
+      <h2>🗺️ Route Instructions</h2>
+      
+      {#if transitOptions.length > 0}
+        <div class="transit-section">
+          <h3>🚇 Nearby Public Transport</h3>
+          {#each transitOptions as option}
+            <button class="transit-option" on:click={() => getTransitDetails(option)}>
+              <div class="transit-icon">{option.type === 'MTR' ? '🚇' : '🚌'}</div>
+              <div class="transit-details">
+                <strong>{option.stop_name}</strong>
+                <p>{option.instruction}</p>
+              </div>
+              <div class="arrow">→</div>
+            </button>
+          {/each}
+        </div>
+      {/if}
+      
+      {#if routeOptions.length > 0 && selectedTransit}
+        <div class="route-options-section">
+          <h3>🛣️ Route Options via {selectedTransit.stop_name}</h3>
+          <div class="options-grid">
+            {#each routeOptions as option}
+              <button 
+                class="route-option-card" 
+                class:selected={selectedRouteOption === option}
+                on:click={() => selectRouteOption(option)}
+              >
+                <div class="option-header">
+                  <h4>{option.option_name}</h4>
+                  <span class="duration-badge">{option.total_duration_min} min</span>
+                </div>
+                <div class="option-summary">
+                  {#each option.steps as step, i}
+                    <span class="step-icon">
+                      {#if step.type === 'walk'}🚶
+                      {:else if step.type === 'bus'}🚌
+                      {:else if step.type === 'mtr'}🚇
+                      {:else if step.type === 'transfer'}🔄
+                      {/if}
+                    </span>
+                    {#if i < option.steps.length - 1}
+                      <span class="step-arrow">→</span>
+                    {/if}
+                  {/each}
+                </div>
+              </button>
+            {/each}
+          </div>
+        </div>
+      {/if}
+      
+      {#if selectedRouteOption}
+        <div class="detailed-route">
+          <h3>📍 {selectedRouteOption.option_name}</h3>
+          <p class="route-duration">Total Time: <strong>{selectedRouteOption.total_duration_min} minutes</strong></p>
+          {#each selectedRouteOption.steps as step, i}
+            <div class="detail-step">
+              <div class="step-number">{i + 1}</div>
+              <div class="step-info">
+                <div class="step-type">
+                  {#if step.type === 'walk'}🚶
+                  {:else if step.type === 'bus'}🚌
+                  {:else if step.type === 'mtr'}🚇
+                  {:else if step.type === 'transfer'}🔄
+                  {/if}
+                  {step.action}
+                </div>
+                {#if step.bus_number}
+                  <p class="bus-info">Bus: <strong>{step.bus_number}</strong></p>
+                {/if}
+                {#if step.get_off_at}
+                  <p class="stop-info">Get off at: <strong>{step.get_off_at}</strong></p>
+                {/if}
+                {#if step.exit_info}
+                  <p class="exit-info">🚪 {step.exit_info}</p>
+                {/if}
+                <p class="instruction">{step.instruction}</p>
+                {#if step.distance_m}
+                  <small>{step.distance_m}m • {step.duration_min} min</small>
+                {:else if step.duration_min}
+                  <small>{step.duration_min} min</small>
+                {/if}
+              </div>
+            </div>
+          {/each}
+        </div>
+      {/if}
+
+      {#if instructions.length > 0}
+        <div class="walking-section">
+          <h3>🚶 Walking Directions</h3>
+          {#each instructions as step, i}
+            <div class="step">
+              <div class="step-number">{i + 1}</div>
+              <div class="step-content">
+                <p>{step.instruction}</p>
+                <small>{step.distance_m}m • {Math.round((step.duration_s ?? 0) / 60)} min</small>
+              </div>
+            </div>
+          {/each}
+        </div>
+      {/if}
+    </div>
+  {/if}
 </div>
-
-
 <style>
-    /* Global Page Layout */
-    :global(body) {
-        font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
-        background-color: #f4f7f6;
-        color: #333;
-    }
-    h1 {
-        color: #007bff;
-        border-bottom: 2px solid #007bff;
-        padding-bottom: 10px;
-        margin-bottom: 20px;
-    }
-
-    /* Navigation Sub-Bar */
-    .nav-sub-bar {
-        display: flex;
-        justify-content: flex-end;
-        gap: 15px;
-        margin-bottom: 25px;
-    }
-    .nav-button {
-        padding: 10px 15px;
-        border: 1px solid #007bff;
-        background-color: #ffffff;
-        color: #007bff;
-        cursor: pointer;
-        font-weight: 600;
-        border-radius: 6px;
-        transition: all 0.2s ease;
-        box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
-    }
-    .nav-button:hover {
-        background-color: #007bff;
-        color: white;
-        box-shadow: 0 4px 6px rgba(0, 123, 255, 0.3);
-    }
-    
-    /* Main Content Layout */
-    .route-content {
-      display: flex;
-      gap: 30px;
-    }
-    
-    .form-section {
-      flex: 1;
-      min-width: 400px;
-    }
-    .map-section {
-      flex: 2;
-      min-width: 500px;
-    }
-
-    .map-wrapper {
-        border-radius: 8px;
-        overflow: hidden;
-        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
-        height: 600px;
-        /* Define a fixed height for the map container */
-    }
-    
-    /* Card Styles */
-    .card {
-        background: #ffffff;
-        padding: 30px;
-        border-radius: 8px;
-        box-shadow: 0 4px 8px rgba(0, 0, 0, 0.05);
-        margin-bottom: 30px;
-    }
-    .results-card {
-        background: #e9f5ff; /* Light blue background for results */
-        padding: 20px;
-        border-radius: 8px;
-        margin-top: 20px;
-        border: 1px solid #cce5ff;
-    }
-
-    /* Form Element Styling */
-    form h2, .results-card h3 {
-        color: #0056b3;
-        margin-top: 0;
-        margin-bottom: 20px;
-        font-size: 1.5em;
-        font-weight: 500;
-    }
-    form label {
-      display: block;
-      margin-bottom: 15px;
-      font-weight: 600;
-      color: #555;
-    }
-    form input, form select {
-      width: 100%;
-      padding: 12px;
-      box-sizing: border-box;
-      margin-top: 5px;
-      border: 1px solid #ddd;
-      border-radius: 4px;
-      font-size: 1em;
-      transition: border-color 0.2s;
-    }
-    form input:focus, form select:focus {
-        border-color: #007bff;
-        outline: none;
-        box-shadow: 0 0 0 2px rgba(0, 123, 255, 0.25);
-    }
-    .mode-options {
-      display: flex;
-      gap: 20px;
-      margin-top: 15px;
-    }
-    .mode-options label {
-      flex: 1;
-      font-weight: 500;
-      margin-bottom: 0;
-    }
-    
-    /* Submit Button */
-    form button[type="submit"] {
-      width: 100%;
-      padding: 15px;
-      background-color: #007bff;
-      color: white;
-      border: none;
-      cursor: pointer;
-      border-radius: 6px;
-      font-size: 1.2em;
-      font-weight: bold;
-      margin-top: 25px;
-      transition: background-color 0.2s, box-shadow 0.2s;
-    }
-    form button[type="submit"]:hover:not(:disabled) {
-      background-color: #0056b3;
-      box-shadow: 0 4px 8px rgba(0, 123, 255, 0.4);
-    }
-    form button:disabled {
-      background-color: #cccccc;
-      cursor: not-allowed;
-      box-shadow: none;
-    }
-    .loading-text {
-      display: block;
-      color: #007bff;
-      font-style: italic;
-      margin-top: 5px;
-      font-weight: normal;
-      font-size: 0.9em;
-    }
-
-    /* Results Formatting */
-    .summary-line {
-        font-size: 1.1em;
-        font-weight: 500;
-        margin-bottom: 15px;
-        color: #333;
-    }
-    .data-highlight {
-        color: #28a745; /* Green for key data */
-        font-weight: bold;
-    }
-    h4 {
-        color: #0056b3;
-        margin-top: 15px;
-        margin-bottom: 10px;
-        font-size: 1.1em;
-    }
-    .steps-list {
-        padding-left: 20px;
-        list-style-type: decimal;
-    }
-    .steps-list li {
-        margin-bottom: 8px;
-        line-height: 1.4;
-    }
+  .card {
+    background: white;
+    padding: 20px;
+    margin: 20px auto;
+    width: 85%;
+    border-radius: 14px;
+    box-shadow: 0px 0px 12px rgba(0,0,0,0.15);
+  }
+  .inputs {
+    display: flex;
+    gap: 8px;
+    margin-bottom: 10px;
+  }
+  .stats {
+    margin-top: 20px;
+    background: #eef3ff;
+    padding: 15px;
+    border-radius: 10px;
+    width: 250px;
+  }
+  
+  .instructions-panel {
+    margin-top: 20px;
+    background: #f8f9fa;
+    padding: 20px;
+    border-radius: 12px;
+    max-height: 500px;
+    overflow-y: auto;
+  }
+  
+  .instructions-panel h2 {
+    margin-top: 0;
+    color: #1e40af;
+  }
+  
+  .instructions-panel h3 {
+    margin: 20px 0 10px 0;
+    color: #334155;
+    font-size: 1.1em;
+  }
+  
+  .transit-section {
+    margin-bottom: 20px;
+  }
+  
+  .transit-option {
+    display: flex;
+    align-items: center;
+    gap: 15px;
+    background: white;
+    padding: 15px;
+    border-radius: 8px;
+    margin-bottom: 10px;
+    border: 2px solid #e5e7eb;
+    cursor: pointer;
+    transition: all 0.2s;
+  }
+  
+  .transit-option:hover {
+    border-color: #3b82f6;
+    background: #f0f7ff;
+    transform: translateX(5px);
+  }
+  
+  .arrow {
+    margin-left: auto;
+    font-size: 20px;
+    color: #6b7280;
+  }
+  
+  .transit-icon {
+    font-size: 2em;
+  }
+  
+  .transit-details {
+    flex: 1;
+  }
+  
+  .transit-details strong {
+    color: #1e40af;
+    display: block;
+    margin-bottom: 5px;
+  }
+  
+  .transit-details p {
+    margin: 0;
+    color: #64748b;
+  }
+  
+  .walking-section {
+    background: white;
+    padding: 15px;
+    border-radius: 8px;
+  }
+  
+  .step {
+    display: flex;
+    gap: 15px;
+    padding: 12px 0;
+    border-bottom: 1px solid #e2e8f0;
+  }
+  
+  .step:last-child {
+    border-bottom: none;
+  }
+  
+  .step-number {
+    background: #3b82f6;
+    color: white;
+    width: 30px;
+    height: 30px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: bold;
+    flex-shrink: 0;
+  }
+  
+  .step-content {
+    flex: 1;
+  }
+  
+  .step-content p {
+    margin: 0 0 5px 0;
+    color: #334155;
+  }
+  
+  .step-content small {
+    color: #64748b;
+  }
+  
+  .detailed-route {
+    margin-top: 20px;
+    background: white;
+    padding: 20px;
+    border-radius: 10px;
+    border: 2px solid #3b82f6;
+  }
+  
+  .detailed-route h3 {
+    margin-top: 0;
+    color: #1e40af;
+  }
+  
+  .detail-step {
+    display: flex;
+    gap: 15px;
+    padding: 15px 0;
+    border-bottom: 1px solid #e2e8f0;
+  }
+  
+  .detail-step:last-child {
+    border-bottom: none;
+  }
+  
+  .step-info {
+    flex: 1;
+  }
+  
+  .step-type {
+    font-weight: bold;
+    color: #1e40af;
+    margin-bottom: 8px;
+    font-size: 1.1em;
+  }
+  
+  .bus-info {
+    margin: 5px 0;
+    color: #059669;
+    font-size: 1.05em;
+  }
+  
+  .stop-info {
+    margin: 5px 0;
+    color: #dc2626;
+  }
+  
+  .instruction {
+    margin: 8px 0;
+    color: #475569;
+  }
+  
+  .route-options-section {
+    margin: 20px 0;
+  }
+  
+  .route-options-section h3 {
+    margin-bottom: 15px;
+    color: #1e40af;
+  }
+  
+  .options-grid {
+    display: grid;
+    gap: 12px;
+  }
+  
+  .route-option-card {
+    background: white;
+    border: 2px solid #e5e7eb;
+    border-radius: 10px;
+    padding: 15px;
+    cursor: pointer;
+    transition: all 0.2s;
+    text-align: left;
+    width: 100%;
+  }
+  
+  .route-option-card:hover {
+    border-color: #3b82f6;
+    background: #f0f7ff;
+    transform: translateY(-2px);
+    box-shadow: 0 4px 8px rgba(59, 130, 246, 0.2);
+  }
+  
+  .route-option-card.selected {
+    border-color: #3b82f6;
+    background: #eff6ff;
+    box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+  }
+  
+  .option-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 10px;
+  }
+  
+  .option-header h4 {
+    margin: 0;
+    font-size: 1.1em;
+    color: #1e293b;
+  }
+  
+  .duration-badge {
+    background: #3b82f6;
+    color: white;
+    padding: 4px 12px;
+    border-radius: 12px;
+    font-size: 0.9em;
+    font-weight: bold;
+  }
+  
+  .option-summary {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    font-size: 1.3em;
+  }
+  
+  .step-icon {
+    opacity: 0.8;
+  }
+  
+  .step-arrow {
+    color: #9ca3af;
+    font-size: 0.8em;
+  }
+  
+  .route-duration {
+    background: #f0f9ff;
+    padding: 10px;
+    border-radius: 6px;
+    margin-bottom: 15px;
+    color: #0c4a6e;
+  }
+  
+  .exit-info {
+    margin: 5px 0;
+    color: #7c3aed;
+    font-weight: 500;
+  }
 </style>

@@ -1,0 +1,16 @@
+{
+  "extends": "@tsconfig/svelte/tsconfig.json",
+  "include": [
+    "src/**/*",
+    "frontend/src/**/*",
+    "frontend/hk-transport-app/src/**/*",
+    "**/*.svelte"
+  ],
+  "exclude": ["node_modules", "dist", "build", "**/src/src/**", "**/*/src/src/**"],
+  "compilerOptions": {
+    "moduleResolution": "node",
+    "target": "esnext",
+    "types": ["svelte", "vite/client"],
+    "allowSyntheticDefaultImports": true
+  }
+}
