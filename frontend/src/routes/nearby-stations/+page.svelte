@@ -52,13 +52,23 @@
       // Detect geolocation permission state and prompt if possible
       if ((navigator as any).permissions && (navigator as any).permissions.query) {
         const result = await (navigator as any).permissions.query({ name: "geolocation" });
-        geoStatus = (result.state as "granted" | "prompt" | "denied") || "idle";
-        if (geoStatus !== "denied") {
-          // Will either auto-get or show a browser prompt
+        const state = result.state as "granted" | "prompt" | "denied";
+        
+        if (state === "granted") {
+          // Already granted - just get location, don't show banner
+          geoStatus = "granted";
+          useMyLocation();
+        } else if (state === "denied") {
+          // Explicitly denied
+          geoStatus = "denied";
+        } else {
+          // Prompt needed - try once silently first
+          geoStatus = "idle";
           useMyLocation();
         }
       } else {
         // Fallback: attempt to request, browser will prompt
+        geoStatus = "idle";
         useMyLocation();
       }
     } catch (e) {
@@ -128,9 +138,12 @@
   function getDirections(station: Station) {
     // Navigate to route planner with pre-filled origin and destination
     const params = new URLSearchParams({
-      from: `${center.lat},${center.lng}`,
-      to: station.name,
-      mode: 'walk' // Default to walking directions
+      fromLat: center.lat.toString(),
+      fromLng: center.lng.toString(),
+      fromName: 'Selected Location',
+      toLat: station.lat.toString(),
+      toLng: station.lng.toString(),
+      toName: station.name
     });
     goto(`/route-planner?${params.toString()}`);
   }
@@ -146,14 +159,9 @@
   <h1>Nearby Stations</h1>
 
   {#if geoStatus === "denied"}
-    <div class="permission-banner">
-      <span>Location access is blocked. Enable it in browser settings or click on the map to set a point.</span>
+    <div class="permission-banner error">
+      <span>📍 Location access is blocked. Enable it in browser settings or click on the map to set a point.</span>
       <button class="retry" on:click={useMyLocation}>Retry</button>
-    </div>
-  {:else if geoStatus === "prompt"}
-    <div class="permission-banner">
-      <span>Allow location access to pin your current position, or click on the map to choose.</span>
-      <button class="retry" on:click={useMyLocation}>Allow</button>
     </div>
   {/if}
 

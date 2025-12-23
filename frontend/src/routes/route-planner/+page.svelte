@@ -35,10 +35,36 @@
   // Parse URL params and populate fields on mount
   onMount(() => {
     const params = $page.url.searchParams;
+    
+    // Read coordinates directly from URL params
+    const fromLat = params.get('fromLat');
+    const fromLng = params.get('fromLng');
+    const fromName = params.get('fromName');
+    const toLat = params.get('toLat');
+    const toLng = params.get('toLng');
+    const toName = params.get('toName');
     const fromParam = params.get('from');
     const toParam = params.get('to');
 
-    if (fromParam) {
+    if (fromLat && fromLng) {
+      const lat = parseFloat(fromLat);
+      const lng = parseFloat(fromLng);
+      if (!isNaN(lat) && !isNaN(lng)) {
+        start = { name: fromName || "Selected Location", lat, lng };
+        startName = fromName || "Selected Location";
+      }
+    }
+
+    if (toLat && toLng) {
+      const lat = parseFloat(toLat);
+      const lng = parseFloat(toLng);
+      if (!isNaN(lat) && !isNaN(lng)) {
+        end = { name: toName || "Destination", lat, lng };
+        endName = toName || "Destination";
+      }
+    }
+
+    if (fromParam && !start) {
       // from param is "lat,lng" format
       const [lat, lng] = fromParam.split(',').map(Number);
       if (!isNaN(lat) && !isNaN(lng)) {
@@ -47,7 +73,7 @@
       }
     }
 
-    if (toParam) {
+    if (toParam && !end) {
       // to param is the station name (we'll geocode it or use it as is)
       endName = toParam;
       // Try to fetch coordinates for this station name via the geocode API
@@ -68,44 +94,11 @@
     }
 
     updateMarkers();
-  });
-
-  // Parse URL params and populate fields on mount
-  onMount(() => {
-    const params = $page.url.searchParams;
-    const fromParam = params.get('from');
-    const toParam = params.get('to');
-
-    if (fromParam) {
-      // from param is "lat,lng" format
-      const [lat, lng] = fromParam.split(',').map(Number);
-      if (!isNaN(lat) && !isNaN(lng)) {
-        start = { name: "Selected Location", lat, lng };
-        startName = "Selected Location";
-      }
+    
+    // Auto-trigger route if both start and end are set
+    if (start && end) {
+      setTimeout(() => getRoute(), 500);
     }
-
-    if (toParam) {
-      // to param is the station name (we'll geocode it or use it as is)
-      endName = toParam;
-      // Try to fetch coordinates for this station name via the geocode API
-      fetch(`http://127.0.0.1:8000/api/geocode/?query=${encodeURIComponent(toParam)}`)
-        .then(res => res.json())
-        .then(data => {
-          if (data && data.lat && data.lng) {
-            end = { name: toParam, lat: data.lat, lng: data.lng };
-            endName = toParam;
-            updateMarkers();
-            // Auto-trigger route if both start and end are set
-            if (start && end) {
-              setTimeout(() => getRoute(), 500);
-            }
-          }
-        })
-        .catch(err => console.warn('Could not geocode destination:', err));
-    }
-
-    updateMarkers();
   });
 
   // Update markers on map
