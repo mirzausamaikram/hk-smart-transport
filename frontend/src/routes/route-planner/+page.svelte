@@ -1,6 +1,8 @@
 <script lang="ts">
   import SearchBar from "$lib/components/SearchBar.svelte";
   import LeafletMap from "$lib/components/LeafletMap.svelte";
+  import { page } from "$app/stores";
+  import { onMount } from "svelte";
 
   // Types
   type Place = { name: string; lat: number; lng: number };
@@ -29,6 +31,82 @@
 
   // Constants
   const API_BASE = "http://127.0.0.1:8000/api/route";
+
+  // Parse URL params and populate fields on mount
+  onMount(() => {
+    const params = $page.url.searchParams;
+    const fromParam = params.get('from');
+    const toParam = params.get('to');
+
+    if (fromParam) {
+      // from param is "lat,lng" format
+      const [lat, lng] = fromParam.split(',').map(Number);
+      if (!isNaN(lat) && !isNaN(lng)) {
+        start = { name: "Selected Location", lat, lng };
+        startName = "Selected Location";
+      }
+    }
+
+    if (toParam) {
+      // to param is the station name (we'll geocode it or use it as is)
+      endName = toParam;
+      // Try to fetch coordinates for this station name via the geocode API
+      fetch(`http://127.0.0.1:8000/api/geocode/?query=${encodeURIComponent(toParam)}`)
+        .then(res => res.json())
+        .then(data => {
+          if (data && data.lat && data.lng) {
+            end = { name: toParam, lat: data.lat, lng: data.lng };
+            endName = toParam;
+            updateMarkers();
+            // Auto-trigger route if both start and end are set
+            if (start && end) {
+              setTimeout(() => getRoute(), 500);
+            }
+          }
+        })
+        .catch(err => console.warn('Could not geocode destination:', err));
+    }
+
+    updateMarkers();
+  });
+
+  // Parse URL params and populate fields on mount
+  onMount(() => {
+    const params = $page.url.searchParams;
+    const fromParam = params.get('from');
+    const toParam = params.get('to');
+
+    if (fromParam) {
+      // from param is "lat,lng" format
+      const [lat, lng] = fromParam.split(',').map(Number);
+      if (!isNaN(lat) && !isNaN(lng)) {
+        start = { name: "Selected Location", lat, lng };
+        startName = "Selected Location";
+      }
+    }
+
+    if (toParam) {
+      // to param is the station name (we'll geocode it or use it as is)
+      endName = toParam;
+      // Try to fetch coordinates for this station name via the geocode API
+      fetch(`http://127.0.0.1:8000/api/geocode/?query=${encodeURIComponent(toParam)}`)
+        .then(res => res.json())
+        .then(data => {
+          if (data && data.lat && data.lng) {
+            end = { name: toParam, lat: data.lat, lng: data.lng };
+            endName = toParam;
+            updateMarkers();
+            // Auto-trigger route if both start and end are set
+            if (start && end) {
+              setTimeout(() => getRoute(), 500);
+            }
+          }
+        })
+        .catch(err => console.warn('Could not geocode destination:', err));
+    }
+
+    updateMarkers();
+  });
 
   // Update markers on map
   function updateMarkers() {

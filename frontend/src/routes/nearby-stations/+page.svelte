@@ -161,8 +161,8 @@
     <button on:click={useMyLocation}>📍 Use My Location</button>
     <button on:click={fetchNearby}>🔍 Search Nearby</button>
     <div class="radius">
-      <label>Radius: {searchRadius} m</label>
-      <input type="range" min="200" max="2000" step="100" bind:value={searchRadius} on:change={fetchNearby} />
+      <label for="radius-input">Radius: {searchRadius} m</label>
+      <input id="radius-input" type="range" min="200" max="2000" step="100" bind:value={searchRadius} on:change={fetchNearby} />
     </div>
   </div>
 
