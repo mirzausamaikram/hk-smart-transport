@@ -32,6 +32,13 @@
     border-bottom-color: #3b82f6;
   }
 
+  nav a:active,
+  nav a.active {
+    color: #fff;
+    background: rgba(59, 130, 246, 0.2);
+    border-bottom-color: #60a5fa;
+  }
+
   main {
     max-width: 950px;
     margin: 25px auto;
@@ -79,11 +86,11 @@
 </style>
 
 <nav>
-  <a href="/">Home</a>
-  <a href="/route-planner">Route Planner</a>
-  <a href="/nearby-stations">Nearby Stations</a>
-  <a href="/itinerary">AI Itinerary</a>
-  <a href="/multi">Multi-Stop Routing</a>
+  <a href="/">🏠 Home</a>
+  <a href="/route-planner">🗺️ Route Planner</a>
+  <a href="/nearby-stations">📍 Nearby Stations</a>
+  <a href="/itinerary">🤖 AI Itinerary</a>
+  <a href="/multi">🚏 Multi-Stop</a>
 </nav>
 
 
