@@ -84,35 +84,53 @@
 
     // user marker updater & radius circle
     function setUserMarker(lat: number, lng: number) {
-        if (!L) return;
+        if (!L || !map) return;
 
-        if (userMarker) userMarker.remove();
-        if (radiusCircle) radiusCircle.remove();
+        // Create a blue dot-like divIcon
+        const dotHtml = `<span style="display:block;width:16px;height:16px;border-radius:50%;background:#2563eb;border:2px solid #fff;box-shadow:0 0 0 1px rgba(0,0,0,0.12);"></span>`;
+        const dotIcon = L.divIcon({ html: dotHtml, className: 'nearby-user-icon', iconSize: [16,16], iconAnchor: [8,8] });
 
-        // Draw a distinct blue circle marker for the user's location
-        userMarker = L.circleMarker([lat, lng], {
-            radius: 10,
-            color: '#2563eb',
-            fillColor: '#2563eb',
-            fillOpacity: 1,
-            weight: 2
-        }).addTo(map).bindTooltip('You are here', { permanent: false });
+        if (!userMarker) {
+            userMarker = L.marker([lat, lng], { icon: dotIcon, draggable: true })
+                .addTo(map)
+                .bindTooltip('Selected location', { permanent: false });
 
-        // Draw radius circle around user (800m or searchRadius)
-        radiusCircle = L.circle([lat, lng], {
-            radius: searchRadius,
-            color: '#3b82f6',
-            fillColor: '#3b82f6',
-            fillOpacity: 0.08,
-            weight: 2,
-            dashArray: '5, 5'
-        }).addTo(map);
+            // Dragging the marker will update selection
+            userMarker.on('dragend', () => {
+                const pos = userMarker.getLatLng();
+                // Move the radius circle
+                if (radiusCircle) radiusCircle.setLatLng(pos);
+                // Notify parent to fetch
+                dispatch('mapclick', { lat: pos.lat, lng: pos.lng });
+            });
+        } else {
+            userMarker.setLatLng([lat, lng]);
+        }
+
+        if (!radiusCircle) {
+            radiusCircle = L.circle([lat, lng], {
+                radius: searchRadius,
+                color: '#3b82f6',
+                fillColor: '#3b82f6',
+                fillOpacity: 0.08,
+                weight: 2,
+                dashArray: '5, 5'
+            }).addTo(map);
+        } else {
+            radiusCircle.setLatLng([lat, lng]);
+            radiusCircle.setRadius(searchRadius);
+        }
     }
 
     // update when center changes
     $: if (map && center) {
         setUserMarker(center.lat, center.lng);
         map.panTo([center.lat, center.lng]);
+    }
+
+    // keep circle radius in sync when slider changes
+    $: if (radiusCircle && searchRadius) {
+        try { radiusCircle.setRadius(searchRadius); } catch {}
     }
 
     // update stations (NO RETURNS inside reactive block)

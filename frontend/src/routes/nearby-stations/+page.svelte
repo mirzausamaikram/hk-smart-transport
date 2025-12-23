@@ -143,6 +143,10 @@
   <div class="controls">
     <button on:click={useMyLocation}>📍 Use My Location</button>
     <button on:click={fetchNearby}>🔍 Search Nearby</button>
+    <div class="radius">
+      <label>Radius: {searchRadius} m</label>
+      <input type="range" min="200" max="2000" step="100" bind:value={searchRadius} on:change={fetchNearby} />
+    </div>
   </div>
 
   <!-- Filter Buttons -->
@@ -161,6 +165,8 @@
   </div>
 
   <NearbyMap {center} {stations} {searchRadius} on:mapclick={mapClick} />
+
+  <p class="hint">Tip: Click anywhere or drag the blue dot to choose a location.</p>
 
   <h2>Nearest Stops:</h2>
 
@@ -215,6 +221,15 @@
     gap: 10px;
     margin-bottom: 10px;
   }
+  .radius {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-left: auto;
+  }
+  .radius input[type="range"] {
+    width: 200px;
+  }
   .filters {
     display: flex;
     flex-wrap: wrap;
@@ -234,5 +249,10 @@
   }
   .list {
     line-height: 1.5rem;
+  }
+  .hint {
+    color: #64748b;
+    font-size: 0.9rem;
+    margin-top: 8px;
   }
 </style>
