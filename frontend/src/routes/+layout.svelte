@@ -79,7 +79,8 @@
 </style>
 
 <nav>
-  <a href="/">Route Planner</a>
+  <a href="/">Home</a>
+  <a href="/route-planner">Route Planner</a>
   <a href="/nearby-stations">Nearby Stations</a>
   <a href="/itinerary">AI Itinerary</a>
   <a href="/multi">Multi-Stop Routing</a>
