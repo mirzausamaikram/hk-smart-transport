@@ -113,6 +113,24 @@
     if (end) markers.push({ ...end, title: "Destination", color: "#FF5722" });
   }
 
+  // Clear all selections and reset route
+  function clearRoute() {
+    start = null;
+    end = null;
+    startName = "";
+    endName = "";
+    markers = [];
+    polyline = [];
+    distance = 0;
+    duration = 0;
+    instructions = [];
+    transitOptions = [];
+    selectedTransit = null;
+    routeOptions = [];
+    selectedRouteOption = null;
+    showInstructions = false;
+  }
+
   // Use My Location as start
   function useMyLocation() {
     navigator.geolocation.getCurrentPosition(
@@ -279,6 +297,7 @@
 
 
     <button on:click={getRoute}>Get Route</button>
+    <button class="clear-btn" on:click={clearRoute}>🔄 Clear</button>
   </div>
 
   <LeafletMap
@@ -523,6 +542,14 @@
     min-width: fit-content;
     height: 48px;
     align-self: stretch;
+  }
+
+  .inputs .clear-btn {
+    background: #64748b;
+  }
+
+  .inputs .clear-btn:hover {
+    background: #475569;
   }
 
   /* Make search bars expand equally and match button height */
