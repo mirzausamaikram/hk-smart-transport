@@ -27,12 +27,58 @@
   let routeOptions: RouteOption[] = [];
   let selectedRouteOption: RouteOption | null = null;
   let walkOnly = false;
+  let collapsedSections: { [key: string]: boolean } = {
+    routeOptions: false,
+    detailedRoute: false,
+    walking: false
+  };
+  let navigationMode = false;
+  let currentStep = 0;
+  let recentLocations: Place[] = [];
+  let distance = 0;
+  let duration = 0;
+  let showAllRoutes = false;
+  let refreshInterval: number | null = null;
+  let lastRefreshTime = Date.now();
 
   // Constants
   const API_BASE = "http://127.0.0.1:8000/api/route";
+  
+  // MTR Line Colors
+  const MTR_LINE_COLORS: { [key: string]: string } = {
+    'Tsuen Wan Line': '#E2231A',
+    'Island Line': '#0860A8',
+    'Kwun Tong Line': '#00A54F',
+    'Tuen Mun Line': '#9B2E87',
+    'Tung Chung Line': '#F48221',
+    'East Rail Line': '#5EB7E8',
+    'South Island Line': '#CBCD00',
+    'Disneyland Resort Line': '#F173AC',
+    'Airport Express': '#007A70',
+  };
+  
+  // Get MTR line color from stop name
+  function getMTRLineColor(stopName: string): string {
+    // Try to detect line from stop name or return default
+    for (const [line, color] of Object.entries(MTR_LINE_COLORS)) {
+      // This is a simplified check - in production you'd query actual line info
+      if (stopName.includes(line.split(' ')[0])) return color;
+    }
+    return '#0860A8'; // Default to Island Line blue
+  }
 
   // Parse URL params and populate fields on mount
   onMount(() => {
+    // Load recent locations from localStorage
+    const saved = localStorage.getItem('recentLocations');
+    if (saved) {
+      try {
+        recentLocations = JSON.parse(saved);
+      } catch (e) {
+        recentLocations = [];
+      }
+    }
+    
     const params = $page.url.searchParams;
     
     // Read coordinates directly from URL params
@@ -104,13 +150,54 @@
     if (start && end) {
       setTimeout(() => getRoute(), 500);
     }
+    
+    // Start auto-refresh for transit ETAs (every 60 seconds)
+    startAutoRefresh();
+    
+    // Cleanup on unmount
+    return () => {
+      stopAutoRefresh();
+    };
   });
+  
+  // Auto-refresh transit ETAs
+  function startAutoRefresh() {
+    if (refreshInterval) return; // Already running
+    refreshInterval = window.setInterval(() => {
+      if (selectedTransit && routeOptions.length > 0) {
+        // Silently refresh transit details
+        getTransitDetails(selectedTransit, true);
+        lastRefreshTime = Date.now();
+      }
+    }, 60000); // 60 seconds
+  }
+  
+  function stopAutoRefresh() {
+    if (refreshInterval) {
+      clearInterval(refreshInterval);
+      refreshInterval = null;
+    }
+  }
 
   // Update markers on map
   function updateMarkers() {
     markers = [];
     if (start) markers.push({ ...start, title: "Start", color: "#4CAF50" });
     if (end) markers.push({ ...end, title: "Destination", color: "#FF5722" });
+  }
+
+  // Swap start and end locations
+  function swapLocations() {
+    const temp = start;
+    const tempName = startName;
+    start = end;
+    startName = endName;
+    end = temp;
+    endName = tempName;
+    updateMarkers();
+    if (start && end) {
+      getRoute();
+    }
   }
 
   // Clear all selections and reset route
@@ -129,6 +216,8 @@
     routeOptions = [];
     selectedRouteOption = null;
     showInstructions = false;
+    navigationMode = false;
+    currentStep = 0;
   }
 
   // Use My Location as start
@@ -172,6 +261,10 @@
       return;
     }
 
+    // Save to recent locations
+    saveToRecent(start);
+    saveToRecent(end);
+
     try {
       const res = await fetch(`${API_BASE}/enhanced`, {
         method: "POST",
@@ -213,10 +306,12 @@
   }
   
   // Get detailed transit route instructions
-  async function getTransitDetails(option: TransitOption) {
-    selectedTransit = option;
-    routeOptions = [];
-    selectedRouteOption = null;
+  async function getTransitDetails(option: TransitOption, silentRefresh = false) {
+    if (!silentRefresh) {
+      selectedTransit = option;
+      routeOptions = [];
+      selectedRouteOption = null;
+    }
     
     try {
       const res = await fetch(`${API_BASE}/transit-detail`, {
@@ -240,14 +335,62 @@
       
       const data = await res.json();
       routeOptions = data.route_options || [];
+      
+      // Auto-select and show first option immediately
+      if (routeOptions.length > 0 && !silentRefresh) {
+        selectRouteOption(routeOptions[0]);
+      }
+      
+      // Auto-select first option and expand sections
+      if (routeOptions.length > 0) {
+        selectRouteOption(routeOptions[0]);
+        collapsedSections['routeOptions'] = false;
+        collapsedSections['detailedRoute'] = false;
+      }
     } catch (error) {
       console.error("Error fetching transit details:", error);
-      alert("Failed to get transit details. Please try again.");
+      if (!silentRefresh) {
+        alert("Failed to get transit details. Please try again.");
+      }
     }
   }
   
   function selectRouteOption(option: RouteOption) {
     selectedRouteOption = option;
+  }
+
+  // Save location to recent
+  function saveToRecent(place: Place) {
+    const exists = recentLocations.find(p => p.lat === place.lat && p.lng === place.lng);
+    if (!exists) {
+      recentLocations = [place, ...recentLocations.slice(0, 9)]; // Keep 10 most recent
+      localStorage.setItem('recentLocations', JSON.stringify(recentLocations));
+    }
+  }
+
+  // Share route as URL
+  function shareRoute() {
+    if (!start || !end) {
+      alert('Please select start and destination first');
+      return;
+    }
+    const params = new URLSearchParams({
+      fromLat: start.lat.toString(),
+      fromLng: start.lng.toString(),
+      fromName: start.name,
+      toLat: end.lat.toString(),
+      toLng: end.lng.toString(),
+      toName: end.name
+    });
+    const url = `${window.location.origin}/route-planner?${params.toString()}`;
+    navigator.clipboard.writeText(url).then(() => {
+      alert('Route link copied to clipboard!');
+    });
+  }
+
+  // Toggle section collapse
+  function toggleSection(section: string) {
+    collapsedSections[section] = !collapsedSections[section];
   }
 </script>
 
@@ -284,6 +427,8 @@
         }}
       />
 
+      <button class="swap-btn" on:click={swapLocations} title="Swap start and destination">↕️</button>
+
       <!-- END -->
       <SearchBar
         placeholder="Destination..."
@@ -298,6 +443,9 @@
 
     <button on:click={getRoute}>Get Route</button>
     <button class="clear-btn" on:click={clearRoute}>🔄 Clear</button>
+    {#if start && end}
+      <button class="share-btn" on:click={shareRoute}>🔗 Share</button>
+    {/if}
   </div>
 
   <LeafletMap
@@ -309,7 +457,14 @@
 
   {#if showInstructions && (transitOptions.length > 0 || instructions.length > 0)}
     <div class="instructions-panel">
-      <h2>{walkOnly ? '🚶 Walking Route' : '🗺️ Route Instructions'}</h2>
+      <div class="instructions-header">
+        <h2>{walkOnly ? '🚶 Walking Route' : '🗺️ Route Instructions'}</h2>
+        {#if navigationMode}
+          <button class="nav-mode-btn" on:click={() => navigationMode = false}>📋 View All</button>
+        {:else}
+          <button class="nav-mode-btn" on:click={() => navigationMode = true}>🧭 Navigation</button>
+        {/if}
+      </div>
       
       {#if !walkOnly && transitOptions.length > 0}
         <div class="transit-section">
@@ -329,56 +484,73 @@
       
       {#if !walkOnly && routeOptions.length > 0 && selectedTransit}
         <div class="route-options-section">
-          <h3>🛣️ Route Options via {selectedTransit.stop_name}</h3>
-          <div class="options-grid">
-            {#each routeOptions as option}
-              <button 
-                class="route-option-card" 
-                class:selected={selectedRouteOption === option}
-                on:click={() => selectRouteOption(option)}
-              >
-                <div class="option-header">
-                  <h4>{option.option_name}</h4>
-                  <span class="duration-badge">{option.total_duration_min} min</span>
-                </div>
-                <div class="option-summary">
-                  {#each option.steps as step, i}
-                    <span class="step-icon">
-                      {#if step.type === 'walk'}🚶
-                      {:else if step.type === 'bus'}🚌
-                      {:else if step.type === 'mtr'}🚇
-                      {:else if step.type === 'ferry'}⛴️
-                      {:else if step.type === 'transfer'}🔄
-                      {/if}
-                    </span>
-                    {#if i < option.steps.length - 1}
-                      <span class="step-arrow">→</span>
-                    {/if}
-                  {/each}
-                </div>
+          <div class="section-header">
+            <div class="section-title">
+              <h3>🛣️ Route Options via {selectedTransit.stop_name}</h3>
+            </div>
+            {#if routeOptions.length > 1}
+              <button class="show-all-btn" on:click={() => showAllRoutes = !showAllRoutes}>
+                {showAllRoutes ? '📋 Compare' : '🔀 Show All'}
               </button>
-            {/each}
+            {/if}
+            <span class="refresh-indicator" title="Last updated: {new Date(lastRefreshTime).toLocaleTimeString()}">
+              🔄 Auto-refresh
+            </span>
           </div>
+          <div class="options-grid" class:show-all={showAllRoutes}>
+              {#each (showAllRoutes ? routeOptions : routeOptions.slice(0, 3)) as option}
+                <button 
+                  class="route-option-card" 
+                  class:selected={selectedRouteOption === option}
+                  on:click={() => selectRouteOption(option)}
+                >
+                  <div class="option-header">
+                    <h4>{option.option_name}</h4>
+                    <span class="duration-badge">{option.total_duration_min} min</span>
+                  </div>
+                  <div class="option-summary">
+                    {#each option.steps as step, i}
+                      <span class="step-icon">
+                        {#if step.type === 'walk'}🚶
+                        {:else if step.type === 'bus'}🚌
+                        {:else if step.type === 'mtr'}🚇
+                        {:else if step.type === 'ferry'}⛴️
+                        {:else if step.type === 'transfer'}🔄
+                        {/if}
+                      </span>
+                      {#if i < option.steps.length - 1}
+                        <span class="step-arrow">→</span>
+                      {/if}
+                    {/each}
+                  </div>
+                </button>
+              {/each}
+            </div>
         </div>
       {/if}
       
       {#if !walkOnly && selectedRouteOption}
         <div class="detailed-route">
           <h3>📍 {selectedRouteOption.option_name}</h3>
-          <p class="route-duration">Total Time: <strong>{selectedRouteOption.total_duration_min} minutes</strong></p>
-          {#each selectedRouteOption.steps as step, i}
-            <div class="detail-step">
-              <div class="step-number">{i + 1}</div>
-              <div class="step-info">
-                <div class="step-type">
+            <p class="route-duration">Total Time: <strong>{selectedRouteOption.total_duration_min} minutes</strong></p>
+            <div class="timeline">
+              {#each selectedRouteOption.steps as step, i}
+            <div class="timeline-step" class:completed={navigationMode && currentStep > i} class:active={navigationMode && currentStep === i}>
+              <div class="timeline-marker">
+                <div class="timeline-icon" class:walk={step.type === 'walk'} class:bus={step.type === 'bus'} class:mtr={step.type === 'mtr'} class:ferry={step.type === 'ferry'}>
                   {#if step.type === 'walk'}🚶
                   {:else if step.type === 'bus'}🚌
                   {:else if step.type === 'mtr'}🚇
                   {:else if step.type === 'ferry'}⛴️
                   {:else if step.type === 'transfer'}🔄
                   {/if}
-                  {step.action}
                 </div>
+                {#if i < selectedRouteOption.steps.length - 1}
+                  <div class="timeline-line" class:walk={step.type === 'walk'} class:bus={step.type === 'bus'} class:mtr={step.type === 'mtr'} class:ferry={step.type === 'ferry'}></div>
+                {/if}
+              </div>
+              <div class="timeline-content">
+                <div class="step-type-label">{step.action}</div>
                 {#if step.bus_number}
                   <p class="bus-info">Bus: <strong>{step.bus_number}</strong></p>
                 {/if}
@@ -396,22 +568,46 @@
                 {/if}
               </div>
             </div>
-          {/each}
+            {/each}
+          </div>
         </div>
       {/if}
 
       {#if instructions.length > 0}
         <div class="walking-section">
-          <h3>🚶 Walking Directions</h3>
-          {#each instructions as step, i}
-            <div class="step">
-              <div class="step-number">{i + 1}</div>
-              <div class="step-content">
-                <p>{step.instruction}</p>
-                <small>{step.distance_m}m • {Math.round((step.duration_s ?? 0) / 60)} min</small>
+          <button class="section-toggle" on:click={() => toggleSection('walking')}>
+            <h3>🚶 Walking Directions</h3>
+            <span class="toggle-icon">{collapsedSections['walking'] ? '▼' : '▲'}</span>
+          </button>
+          {#if !collapsedSections['walking']}
+            {#if navigationMode && instructions.length > 0}
+            <!-- Navigation Mode: Show one step at a time -->
+            <div class="navigation-mode">
+              <div class="step current-step">
+                <div class="step-number">{currentStep + 1}</div>
+                <div class="step-content">
+                  <p>{instructions[currentStep].instruction}</p>
+                  <small>{instructions[currentStep].distance_m}m • {Math.round((instructions[currentStep].duration_s ?? 0) / 60)} min</small>
+                </div>
+              </div>
+              <div class="nav-controls">
+                <button on:click={() => currentStep = Math.max(0, currentStep - 1)} disabled={currentStep === 0}>← Previous</button>
+                <span class="step-counter">{currentStep + 1} of {instructions.length}</span>
+                <button on:click={() => currentStep = Math.min(instructions.length - 1, currentStep + 1)} disabled={currentStep === instructions.length - 1}>Next →</button>
               </div>
             </div>
-          {/each}
+          {:else}
+            {#each instructions as step, i}
+              <div class="step">
+                <div class="step-number">{i + 1}</div>
+                <div class="step-content">
+                  <p>{step.instruction}</p>
+                  <small>{step.distance_m}m • {Math.round((step.duration_s ?? 0) / 60)} min</small>
+                </div>
+              </div>
+            {/each}
+          {/if}
+        {/if}
         </div>
       {/if}
     </div>
@@ -544,6 +740,19 @@
     align-self: stretch;
   }
 
+  .inputs .swap-btn {
+    background: #8b5cf6;
+    padding: 12px;
+    min-width: 48px;
+    font-size: 1.2em;
+  }
+
+  .inputs .swap-btn:hover {
+    background: #7c3aed;
+    transform: rotate(180deg);
+    transition: all 0.3s;
+  }
+
   .inputs .clear-btn {
     background: #64748b;
   }
@@ -552,15 +761,103 @@
     background: #475569;
   }
 
+  .inputs .share-btn {
+    background: #10b981;
+  }
+
+  .inputs .share-btn:hover {
+    background: #059669;
+  }
+
   /* Make search bars expand equally and match button height */
   .inputs :global(.search-wrapper) { max-width: none; width: 100%; }
   .inputs :global(.input-wrap) { height: 48px; }
-  .stats {
-    margin-top: 20px;
-    background: #eef3ff;
+  
+  .instructions-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 15px;
+  }
+
+  .nav-mode-btn {
+    padding: 8px 16px;
+    background: #3b82f6;
+    color: white;
+    border: none;
+    border-radius: 8px;
+    cursor: pointer;
+    font-size: 0.9em;
+  }
+
+  .nav-mode-btn:hover {
+    background: #2563eb;
+  }
+
+  .section-toggle {
+    width: 100%;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    background: transparent;
+    border: none;
+    padding: 10px 0;
+    cursor: pointer;
+    text-align: left;
+  }
+
+  .section-toggle h3 {
+    margin: 0;
+  }
+
+  .toggle-icon {
+    font-size: 1.2em;
+    color: #64748b;
+  }
+
+  .navigation-mode {
+    background: white;
+    border-radius: 12px;
+    padding: 20px;
+    margin: 15px 0;
+  }
+
+  .current-step {
+    font-size: 1.1em;
     padding: 15px;
-    border-radius: 10px;
-    width: 250px;
+    background: #eff6ff;
+    border-left: 4px solid #3b82f6;
+  }
+
+  .nav-controls {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-top: 15px;
+    gap: 10px;
+  }
+
+  .nav-controls button {
+    padding: 10px 20px;
+    background: #3b82f6;
+    color: white;
+    border: none;
+    border-radius: 8px;
+    cursor: pointer;
+  }
+
+  .nav-controls button:disabled {
+    background: #cbd5e1;
+    cursor: not-allowed;
+  }
+
+  .nav-controls button:not(:disabled):hover {
+    background: #2563eb;
+  }
+
+  .step-counter {
+    color: #64748b;
+    font-weight: 600;
   }
   
   .instructions-panel {
@@ -687,28 +984,6 @@
     color: #1e40af;
   }
   
-  .detail-step {
-    display: flex;
-    gap: 15px;
-    padding: 15px 0;
-    border-bottom: 1px solid #e2e8f0;
-  }
-  
-  .detail-step:last-child {
-    border-bottom: none;
-  }
-  
-  .step-info {
-    flex: 1;
-  }
-  
-  .step-type {
-    font-weight: bold;
-    color: #1e40af;
-    margin-bottom: 8px;
-    font-size: 1.1em;
-  }
-  
   .bus-info {
     margin: 5px 0;
     color: #059669;
@@ -727,6 +1002,45 @@
   
   .route-options-section {
     margin: 20px 0;
+  }
+  
+  .section-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 15px;
+    flex-wrap: wrap;
+    gap: 10px;
+  }
+  
+  .section-title h3 {
+    margin: 0;
+    color: #1e40af;
+  }
+  
+  .show-all-btn {
+    padding: 6px 14px;
+    background: #8b5cf6;
+    color: white;
+    border: none;
+    border-radius: 6px;
+    cursor: pointer;
+    font-size: 0.85em;
+    transition: all 0.2s;
+  }
+  
+  .show-all-btn:hover {
+    background: #7c3aed;
+    transform: translateY(-1px);
+  }
+  
+  .refresh-indicator {
+    padding: 6px 12px;
+    background: #f0fdf4;
+    color: #15803d;
+    border-radius: 6px;
+    font-size: 0.8em;
+    border: 1px solid #bbf7d0;
   }
   
   .route-options-section h3 {
@@ -813,5 +1127,200 @@
     margin: 5px 0;
     color: #7c3aed;
     font-weight: 500;
+  }
+
+  /* Timeline Stepper Styles */
+  .timeline {
+    padding: 20px 0;
+  }
+
+  .timeline-step {
+    display: flex;
+    gap: 20px;
+    position: relative;
+    opacity: 0.6;
+    transition: all 0.3s ease;
+  }
+
+  .timeline-step.active {
+    opacity: 1;
+    transform: scale(1.02);
+    background: #f0f9ff;
+    padding: 10px;
+    border-radius: 10px;
+    margin: 0 -10px;
+  }
+
+  .timeline-step.completed {
+    opacity: 1;
+  }
+
+  .timeline-marker {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    min-width: 50px;
+  }
+
+  .timeline-icon {
+    width: 44px;
+    height: 44px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.3em;
+    background: #e5e7eb;
+    border: 3px solid #fff;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+    z-index: 2;
+    transition: all 0.3s ease;
+  }
+
+  .timeline-icon.walk {
+    background: #dbeafe;
+    border-color: #3b82f6;
+  }
+
+  .timeline-icon.bus {
+    background: #fef3c7;
+    border-color: #f59e0b;
+  }
+
+  .timeline-icon.mtr {
+    background: #ddd6fe;
+    border-color: #8b5cf6;
+  }
+
+  .timeline-icon.ferry {
+    background: #d1fae5;
+    border-color: #10b981;
+  }
+
+  .timeline-step.active .timeline-icon {
+    transform: scale(1.15);
+    box-shadow: 0 4px 12px rgba(59, 130, 246, 0.4);
+  }
+
+  .timeline-line {
+    width: 4px;
+    flex-grow: 1;
+    background: #e5e7eb;
+    margin: 8px 0;
+    position: relative;
+    transition: all 0.3s ease;
+  }
+
+  .timeline-line.walk {
+    background: repeating-linear-gradient(
+      to bottom,
+      #3b82f6,
+      #3b82f6 8px,
+      transparent 8px,
+      transparent 16px
+    );
+  }
+
+  .timeline-line.bus {
+    background: #f59e0b;
+    width: 6px;
+  }
+
+  .timeline-line.mtr {
+    background: #8b5cf6;
+    width: 8px;
+  }
+
+  .timeline-line.ferry {
+    background: #10b981;
+    width: 6px;
+  }
+
+  .timeline-step.completed .timeline-line {
+    background: #10b981;
+  }
+
+  .timeline-content {
+    flex: 1;
+    padding-bottom: 25px;
+  }
+
+  .step-type-label {
+    font-weight: 600;
+    color: #1e293b;
+    margin-bottom: 8px;
+    font-size: 1.05em;
+  }
+
+  .timeline-step.active .step-type-label {
+    color: #0c4a6e;
+    font-size: 1.1em;
+  }
+
+  .instruction {
+    color: #475569;
+    margin: 8px 0;
+    line-height: 1.5;
+  }
+
+  .bus-info, .stop-info {
+    margin: 6px 0;
+    color: #64748b;
+  }
+
+  .bus-info strong, .stop-info strong {
+    color: #1e293b;
+  }
+
+  /* Section header with multiple controls */
+  .section-header {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    flex-wrap: wrap;
+  }
+
+  .section-header .section-toggle {
+    flex: 1;
+    min-width: 200px;
+  }
+
+  .show-all-btn {
+    padding: 8px 16px;
+    background: #6366f1;
+    color: white;
+    border: none;
+    border-radius: 8px;
+    cursor: pointer;
+    font-size: 0.9em;
+    white-space: nowrap;
+  }
+
+  .show-all-btn:hover {
+    background: #4f46e5;
+  }
+
+  .refresh-indicator {
+    display: inline-block;
+    padding: 6px 12px;
+    background: #dcfce7;
+    color: #166534;
+    border-radius: 8px;
+    font-size: 0.85em;
+    animation: pulse 2s infinite;
+  }
+
+  @keyframes pulse {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.6; }
+  }
+
+  .options-grid.show-all {
+    max-height: none;
+  }
+
+  .options-grid:not(.show-all) {
+    max-height: 400px;
+    overflow-y: auto;
   }
 </style>

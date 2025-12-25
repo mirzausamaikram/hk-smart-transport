@@ -162,12 +162,13 @@
     }
 </script>
 
-<div bind:this={mapDiv} style="height: 500px"></div>
+<div bind:this={mapDiv} style="height: 500px; position: relative; z-index: 1; pointer-events: auto;"></div>
 
 <style>
     :global(.leaflet-container) {
         height: 100%;
         width: 100%;
         cursor: crosshair;
+        pointer-events: auto;
     }
 </style>

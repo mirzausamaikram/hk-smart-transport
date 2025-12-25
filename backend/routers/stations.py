@@ -3,10 +3,6 @@ import httpx
 
 router = APIRouter()
 
-
-# ---------------------------
-# 1. Get ALL KMB Bus Stops
-# ---------------------------
 @router.get("/bus-stops")
 async def bus_stops():
     url = "https://data.etabus.gov.hk/v1/transport/kmb/stop"

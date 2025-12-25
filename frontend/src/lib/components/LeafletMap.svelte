@@ -4,7 +4,7 @@
 
   export let center: { lat: number; lng: number };
   export let markers: { lat: number; lng: number; title: string; color: string }[] = [];
-  export let polyline: { lat: number; lng: number; style?: 'solid' | 'dotted' }[] = [];
+  export let polyline: { lat: number; lng: number; style?: 'solid' | 'dotted'; type?: string }[] = [];
   // POI markers (separate layer)
   export let poiMarkers: { lat: number; lng: number; name: string; description?: string; type?: string }[] = [];
   export let showPois: boolean = true;
@@ -81,19 +81,42 @@
     if (polyline.length > 0) {
       import("leaflet").then((L) => {
         // Group polyline segments by style
-        let currentSegment: { lat: number; lng: number }[] = [];
-        let currentStyle: 'solid' | 'dotted' = 'solid';
+        let currentSegment: { lat: number; lng: number; style?: string; type?: string }[] = [];
+        let currentStyle: string = 'solid';
+        let currentType: string = 'walk';
         
         polyline.forEach((p, idx) => {
-          const style: 'solid' | 'dotted' = p.style || 'solid';
+          const style: string = p.style || 'solid';
+          const type: string = p.type || 'walk';
           
-          if (style !== currentStyle && currentSegment.length > 0) {
-            // Render current segment
+          if ((style !== currentStyle || type !== currentType) && currentSegment.length > 0) {
+            // Render current segment with appropriate styling
             const pts = currentSegment.map((pt): [number, number] => [pt.lat, pt.lng]);
-            const dashArray: string = currentStyle === 'dotted' ? '5, 5' : 'none';
-            L.polyline(pts, { color: "blue", weight: 5, dashArray }).addTo(layerRoute);
+            
+            // Determine color and weight based on type
+            let color = '#3b82f6'; // default blue
+            let weight = 5;
+            let dashArray = 'none';
+            
+            if (currentType === 'walk') {
+              color = '#3b82f6';
+              weight = 4;
+              dashArray = currentStyle === 'dotted' ? '8, 8' : 'none';
+            } else if (currentType === 'bus') {
+              color = '#f59e0b';
+              weight = 6;
+            } else if (currentType === 'mtr') {
+              color = '#8b5cf6';
+              weight = 8;
+            } else if (currentType === 'ferry') {
+              color = '#10b981';
+              weight = 6;
+            }
+            
+            L.polyline(pts, { color, weight, dashArray }).addTo(layerRoute);
             currentSegment = [];
             currentStyle = style;
+            currentType = type;
           }
           currentSegment.push(p);
         });
@@ -101,8 +124,27 @@
         // Render final segment
         if (currentSegment.length > 1) {
           const pts = currentSegment.map((pt): [number, number] => [pt.lat, pt.lng]);
-          const dashArray: string = currentStyle === 'dotted' ? '5, 5' : 'none';
-          L.polyline(pts, { color: "blue", weight: 5, dashArray }).addTo(layerRoute);
+          
+          let color = '#3b82f6';
+          let weight = 5;
+          let dashArray = 'none';
+          
+          if (currentType === 'walk') {
+            color = '#3b82f6';
+            weight = 4;
+            dashArray = currentStyle === 'dotted' ? '8, 8' : 'none';
+          } else if (currentType === 'bus') {
+            color = '#f59e0b';
+            weight = 6;
+          } else if (currentType === 'mtr') {
+            color = '#8b5cf6';
+            weight = 8;
+          } else if (currentType === 'ferry') {
+            color = '#10b981';
+            weight = 6;
+          }
+          
+          L.polyline(pts, { color, weight, dashArray }).addTo(layerRoute);
         }
 
         // Fit map bounds to include route and markers

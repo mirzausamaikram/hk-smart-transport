@@ -236,6 +236,8 @@
     width: 900px;
     margin: auto;
     box-shadow: 0 4px 18px rgba(0,0,0,0.06);
+    position: relative;
+    z-index: 1;
   }
   .permission-banner {
     display: flex;
@@ -270,6 +272,7 @@
   }
   .radius input[type="range"] {
     width: 200px;
+    pointer-events: auto;
   }
   .filters {
     display: flex;
