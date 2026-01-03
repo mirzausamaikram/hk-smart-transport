@@ -48,6 +48,14 @@ cd backend
 pip install -r requirements.txt
 ```
 
+**If you encounter pandas installation errors:**
+```bash
+# Use the minimal requirements without pandas/numpy
+pip install -r requirements-minimal.txt
+```
+
+Note: Pandas is only needed for advanced pedestrian network routing. The app works perfectly without it.
+
 3. **Frontend Setup**
 ```bash
 cd frontend
@@ -116,6 +124,66 @@ hk-smart-transport/
 - Python 3.x
 - OpenStreetMap (Overpass API)
 - Various HK transport APIs
+
+## 🐛 Troubleshooting
+
+### Backend Installation Issues
+
+**Problem: "metadata generation for pandas failed"**
+
+This is a common issue with pandas on some systems. Solutions:
+
+1. **Use minimal requirements (Recommended)**
+   ```bash
+   cd backend
+   pip install -r requirements-minimal.txt
+   ```
+
+2. **Install pandas separately with prebuilt wheels**
+   ```bash
+   pip install --upgrade pip
+   pip install pandas --only-binary :all:
+   ```
+
+3. **Use Python 3.11 or 3.12** (best compatibility)
+   ```bash
+   python --version  # Check your version
+   ```
+
+4. **On Windows, install Visual C++ Build Tools** (if needed)
+   - Download from: https://visualstudio.microsoft.com/visual-cpp-build-tools/
+
+**Problem: "No module named 'uvicorn'"**
+```bash
+pip install uvicorn[standard]
+```
+
+**Problem: "Port 8000 already in use"**
+```bash
+# Windows
+netstat -ano | findstr :8000
+taskkill /PID <PID> /F
+
+# Linux/Mac
+lsof -ti:8000 | xargs kill -9
+```
+
+### Frontend Installation Issues
+
+**Problem: "npm install fails"**
+```bash
+# Clear cache and retry
+npm cache clean --force
+rm -rf node_modules package-lock.json
+npm install
+```
+
+**Problem: "Module not found" errors**
+```bash
+cd frontend
+npm install
+npm run dev
+```
 
 ## 🤝 Contributing
 
