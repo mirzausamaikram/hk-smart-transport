@@ -1501,7 +1501,7 @@
     box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.1);
   }
 
-  .title, select, input[type="time"] {
+  .title {
     padding: 10px 14px;
     border: 1px solid #d1d5db;
     border-radius: 6px;
@@ -1517,7 +1517,7 @@
     min-width: 180px;
   }
 
-  .title:focus, select:focus, input[type="time"]:focus {
+  .title:focus {
     outline: none;
     border-color: #3b82f6;
     box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
@@ -1704,16 +1704,6 @@
     border-radius: 10px;
     width: 100%;
     box-shadow: 0 2px 8px rgba(3, 102, 214, 0.1);
-  }
-
-  .stats p {
-    margin: 6px 0;
-    font-size: 13px;
-    color: #0c4a6e;
-  }
-
-  .stats strong {
-    color: #0369a1;
   }
 
   /* Alternatives */
