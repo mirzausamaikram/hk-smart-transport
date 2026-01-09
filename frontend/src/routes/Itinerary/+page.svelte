@@ -440,26 +440,28 @@
   }
 
   .section {
-    margin: 30px 0;
-    padding: 20px;
+    margin: 40px 0;
+    padding: 15px;
     background: #f8fafc;
     border-radius: 12px;
+    border: 1px solid #e2e8f0;
   }
 
   .section h3 {
-    margin: 0 0 15px 0;
+    margin: 0 0 25px 0;
     color: #1e293b;
     font-size: 1.3em;
+    font-weight: 600;
   }
 
   .inputs {
     display: grid;
     grid-template-columns: 1fr 1fr;
-    gap: 15px;
+    gap: 30px;
   }
 
   input {
-    padding: 12px 15px;
+    padding: 4px 5px;
     border: 2px solid #e2e8f0;
     border-radius: 8px;
     font-size: 1em;
@@ -469,91 +471,92 @@
   input:focus {
     outline: none;
     border-color: #667eea;
-    box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+    box-shadow: 0 0 0 4px rgba(102, 126, 234, 0.1);
   }
 
   .datetime-inputs {
     display: grid;
     grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-    gap: 15px;
+    gap: 30px;
   }
 
   .input-group {
     display: flex;
     flex-direction: column;
-    gap: 8px;
+    gap: 12px;
   }
 
   .input-group label {
     font-weight: 600;
     color: #475569;
-    font-size: 0.9em;
+    font-size: 0.95em;
   }
 
   .transport-grid {
     display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(100px, 1fr));
-    gap: 10px;
+    grid-template-columns: repeat(auto-fit, minmax(110px, 1fr));
+    gap: 20px;
   }
 
   .transport-btn {
-    padding: 15px;
+    padding: 5px;
     background: white;
     border: 2px solid #e2e8f0;
     border-radius: 10px;
     cursor: pointer;
     transition: all 0.2s;
-    font-size: 1em;
+    font-size: 0.95em;
     display: flex;
     flex-direction: column;
     align-items: center;
-    gap: 5px;
-    color: #0f172a; /* darker text for readability */
+    gap: 8px;
+    color: #0f172a;
   }
 
   .transport-btn:hover {
     border-color: #667eea;
-    transform: translateY(-2px);
+    transform: translateY(-3px);
+    box-shadow: 0 4px 12px rgba(102, 126, 234, 0.15);
   }
 
   .transport-btn.active {
     background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
     color: white;
     border-color: transparent;
-    box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
+    box-shadow: 0 6px 16px rgba(102, 126, 234, 0.4);
   }
 
   .preference-grid {
     display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
-    gap: 12px;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 22px;
   }
 
   .preference-btn {
     background: white;
     border: 2px solid #e2e8f0;
     border-radius: 10px;
-    padding: 15px;
+    padding: 6px;
     cursor: pointer;
     transition: all 0.2s;
     text-align: left;
     display: flex;
     flex-direction: column;
-    gap: 5px;
-    color: #0f172a; /* darker text */
+    gap: 8px;
+    color: #0f172a;
   }
 
   .preference-btn:hover {
     border-color: #667eea;
-    transform: translateY(-2px);
-    box-shadow: 0 4px 12px rgba(102, 126, 234, 0.2);
+    transform: translateY(-3px);
+    box-shadow: 0 6px 16px rgba(102, 126, 234, 0.15);
   }
 
   .preference-btn.active {
     background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
     border-color: transparent;
     color: white;
-    box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
+    box-shadow: 0 6px 16px rgba(102, 126, 234, 0.4);
   }
 
   .pref-label {
@@ -568,38 +571,41 @@
 
   .interests-grid {
     display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
-    gap: 10px;
+    grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+    gap: 20px;
   }
 
   .interest-btn {
     background: white;
     border: 2px solid #e2e8f0;
     border-radius: 10px;
-    padding: 12px;
+    padding: 5px;
     cursor: pointer;
     transition: all 0.2s;
     display: flex;
     align-items: center;
-    gap: 8px;
+    justify-content: center;
+    gap: 10px;
     font-size: 0.95em;
-    color: #0f172a; /* darker text */
+    color: #0f172a;
+    min-height: 60px;
   }
 
   .interest-btn:hover {
     border-color: #667eea;
-    transform: scale(1.05);
+    transform: scale(1.08);
+    box-shadow: 0 4px 12px rgba(102, 126, 234, 0.15);
   }
 
   .interest-btn.active {
     background: #eff6ff;
     border-color: #3b82f6;
-    box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+    box-shadow: 0 4px 12px rgba(59, 130, 246, 0.2);
     color: #0f172a;
   }
 
   .interest-icon {
-    font-size: 1.5em;
+    font-size: 1.8em;
   }
 
   .generate-btn {
