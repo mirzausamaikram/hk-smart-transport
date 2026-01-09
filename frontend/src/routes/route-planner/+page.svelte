@@ -1280,11 +1280,6 @@
     flex-wrap: wrap;
   }
 
-  .section-header .section-toggle {
-    flex: 1;
-    min-width: 200px;
-  }
-
   .show-all-btn {
     padding: 8px 16px;
     background: #6366f1;

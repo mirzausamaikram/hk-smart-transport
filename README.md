@@ -75,24 +75,46 @@ Create a `.env` file in the root directory:
 .\start.ps1
 ```
 
-**Option 2: Manual start**
+**Option 2: Manual start with Uvicorn (Recommended)**
 
-Terminal 1 - Backend:
+Open two terminal windows/tabs:
+
+**Terminal 1 - Backend:**
+```bash
+cd backend
+python -m uvicorn main:app --host 127.0.0.1 --port 8000 --reload
+```
+
+**Terminal 2 - Frontend:**
+```bash
+cd frontend
+npm run dev
+```
+
+**Option 3: Legacy method**
+
+**Terminal 1 - Backend:**
 ```bash
 cd backend
 python main.py
 ```
 
-Terminal 2 - Frontend:
+**Terminal 2 - Frontend:**
 ```bash
 cd frontend
 npm run dev
 ```
 
 The app will be available at:
-- Frontend: http://localhost:5173
-- Backend API: http://localhost:8000
-- API Docs: http://localhost:8000/docs
+- **Frontend**: http://localhost:5173
+- **Backend API**: http://127.0.0.1:8000
+- **API Documentation**: http://127.0.0.1:8000/docs
+- **API ReDoc**: http://127.0.0.1:8000/redoc
+
+### Stopping the Servers
+
+- Press `Ctrl+C` in each terminal to stop the respective server
+- If port 8000 is still in use, run: `netstat -ano | findstr :8000` and kill the process
 
 ## 📁 Project Structure
 
