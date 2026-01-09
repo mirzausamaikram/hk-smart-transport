@@ -112,8 +112,10 @@ class PedestrianNetworkGraph:
             print(f"✓ Loaded pedestrian network: {len(self.nodes)} nodes")
             return True
         
+        except FileNotFoundError:
+            return False
         except Exception as e:
-            print(f"✗ Error loading GeoJSON: {e}")
+            print(f"Warning: Error loading pedestrian network: {e}")
             return False
     
     def _find_or_create_node(self, lat: float, lng: float, tolerance: float = 0.0001) -> Optional[str]:
@@ -254,7 +256,11 @@ def load_pedestrian_network(geojson_file: str = "data/hk_pedestrian_network.geoj
     """Initialize the global pedestrian network"""
     global _network
     _network = PedestrianNetworkGraph()
-    return _network.load_from_geojson(Path(geojson_file))
+    try:
+        return _network.load_from_geojson(Path(geojson_file))
+    except Exception as e:
+        print(f"Warning: Could not load pedestrian network: {e}")
+        return False
 
 def route_walking(start_lat: float, start_lng: float, 
                   end_lat: float, end_lng: float) -> Tuple[Optional[List[Tuple[float, float]]], float]:

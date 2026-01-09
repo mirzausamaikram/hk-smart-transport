@@ -641,15 +641,25 @@ def multistop(req: MultiStopRequest):
     coord_list = ";".join([f"{p['lng']},{p['lat']}" for p in req.points])
     url = f"{OSRM_URL}{coord_list}?overview=full&geometries=geojson"
 
-    osrm = requests.get(url).json()
+    try:
+        osrm = requests.get(url, timeout=10).json()
+        
+        if not osrm.get("routes") or len(osrm["routes"]) == 0:
+            return {"error": "No routes found. Please check your waypoints."}
+        
+        coords = osrm["routes"][0]["geometry"]["coordinates"]
 
-    coords = osrm["routes"][0]["geometry"]["coordinates"]
-
-    return {
-        "polyline": osrm_polyline(coords),
-        "distance_m": osrm["routes"][0]["distance"],
-        "duration_s": osrm["routes"][0]["duration"]
-    }
+        return {
+            "polyline": osrm_polyline(coords),
+            "distance_m": osrm["routes"][0]["distance"],
+            "duration_s": osrm["routes"][0]["duration"]
+        }
+    except requests.exceptions.Timeout:
+        return {"error": "Route service timeout. Please try again."}
+    except requests.exceptions.ConnectionError:
+        return {"error": "Cannot connect to routing service. Please check your internet connection."}
+    except Exception as e:
+        return {"error": f"Routing error: {str(e)}"}
 
 
 # ----------------------------------------------------------
@@ -669,8 +679,10 @@ def optimize(req: OptimizeRequest):
 
     try:
         tbl = requests.get(table_url, timeout=10).json()
+    except requests.exceptions.Timeout:
+        return {"error": "OSRM service timeout. Please try again."}
     except Exception as e:
-        return {"error": f"OSRM table request failed: {e}"}
+        return {"error": f"OSRM table request failed: {str(e)}"}
 
     # Prefer durations (seconds) for optimization; fallback to distances (meters)
     matrix = tbl.get("durations") or tbl.get("distances")
@@ -688,18 +700,23 @@ def optimize(req: OptimizeRequest):
 
     try:
         osrm = requests.get(route_url, timeout=10).json()
+        
+        if not osrm.get("routes") or len(osrm["routes"]) == 0:
+            return {"error": "No optimized route found.", "ordered_index": order}
+        
+        coords = osrm["routes"][0]["geometry"]["coordinates"]
+
+        return {
+            "optimized": ordered_pts,
+            "ordered_index": order,
+            "polyline": osrm_polyline(coords),
+            "distance_m": osrm["routes"][0]["distance"],
+            "duration_s": osrm["routes"][0]["duration"]
+        }
+    except requests.exceptions.Timeout:
+        return {"error": "OSRM route service timeout. Please try again.", "ordered_index": order}
     except Exception as e:
-        return {"error": f"OSRM route request failed: {e}", "ordered_index": order}
-
-    coords = osrm["routes"][0]["geometry"]["coordinates"]
-
-    return {
-        "optimized": ordered_pts,
-        "ordered_index": order,
-        "polyline": osrm_polyline(coords),
-        "distance_m": osrm["routes"][0]["distance"],
-        "duration_s": osrm["routes"][0]["duration"]
-    }
+        return {"error": f"OSRM route request failed: {str(e)}", "ordered_index": order}
 
 
 class AlternativesRequest(BaseModel):

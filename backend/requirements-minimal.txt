@@ -1,10 +1,11 @@
 # Minimal requirements without pandas/numpy
 # Use this if you encounter installation issues with pandas
-fastapi==0.109.0
-uvicorn[standard]==0.27.0
-python-dotenv==1.0.0
-requests==2.31.0
-pydantic==2.5.3
-httpx==0.26.0
-geopy==2.4.1
-python-multipart==0.0.6
+# These versions don't require Rust compiler
+fastapi>=0.100.0,<0.110.0
+uvicorn[standard]>=0.23.0,<0.28.0
+python-dotenv>=1.0.0
+requests>=2.31.0
+pydantic>=2.0.0,<3.0.0
+httpx>=0.24.0
+geopy>=2.4.0
+python-multipart>=0.0.6
