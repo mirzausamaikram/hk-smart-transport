@@ -23,9 +23,6 @@ async def bus_stops():
     return {"stops": stops}
 
 
-# ---------------------------
-# 2. Get ETA for a stop
-# ---------------------------
 @router.get("/eta/{stop_id}")
 async def bus_eta(stop_id: str):
     url = f"https://data.etabus.gov.hk/v1/transport/kmb/eta/{stop_id}/"

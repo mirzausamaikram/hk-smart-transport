@@ -11,7 +11,6 @@ from .pedestrian_router import route_walking, load_pedestrian_network
 
 router = APIRouter()
 
-# Try to load pedestrian network on startup
 try:
     load_pedestrian_network()
     PEDESTRIAN_NETWORK_LOADED = True
@@ -19,14 +18,12 @@ except Exception as e:
     print(f"Warning: Pedestrian network not loaded: {e}")
     PEDESTRIAN_NETWORK_LOADED = False
 
-# Constants
 OSRM_URL = "http://router.project-osrm.org/route/v1/driving/"
 OSRM_WALK_URL = "http://router.project-osrm.org/route/v1/foot/"
 KMB_API_BASE = "https://data.etabus.gov.hk/v1/transport/kmb"
-WALKING_SPEED_M_PER_MIN = 83.3  # 5 km/h walking speed
+WALKING_SPEED_M_PER_MIN = 83.3
 API_TIMEOUT = 5.0
 
-# Real MTR Line Information
 MTR_LINES = {
     "Tsuen Wan Line": ["Central", "Admiralty", "Tsim Sha Tsui", "Jordan", "Yau Ma Tei", "Mong Kok", "Prince Edward", "Sham Shui Po", "Cheung Sha Wan", "Lai Chi Kok", "Mei Foo", "Lai King", "Kwai Fong", "Kwai Hing", "Tai Wo Hau", "Tsuen Wan"],
     "Island Line": ["Kennedy Town", "HKU", "Sai Ying Pun", "Sheung Wan", "Central", "Admiralty", "Wan Chai", "Causeway Bay", "Tin Hau", "Fortress Hill", "North Point", "Quarry Bay", "Tai Koo", "Sai Wan Ho", "Shau Kei Wan", "Heng Fa Chuen", "Chai Wan"],
@@ -36,13 +33,9 @@ MTR_LINES = {
     "East Rail Line": ["Admiralty", "Exhibition Centre", "Hung Hom", "Mong Kok East", "Kowloon Tong", "Tai Wai", "Sha Tin", "Fo Tan", "Racecourse", "University", "Tai Po Market", "Tai Wo", "Fanling", "Sheung Shui", "Lo Wu", "Lok Ma Chau"],
 }
 
-# Common Hong Kong bus routes for fallback
 COMMON_HK_BUS_ROUTES = ["2", "6", "9", "13X", "41A", "68E"]
 
 
-# ----------------------------------------------------------
-# HELPER FUNCTIONS
-# ----------------------------------------------------------
 
 def format_distance(distance_m: int) -> str:
     """Format distance as km or m depending on size"""
@@ -88,7 +81,7 @@ async def get_stop_id_by_name(stop_name: str) -> str:
                     if stop_name.upper() in stop.get("name_en", "").upper():
                         return stop.get("stop")
     except Exception:
-        pass  # Silently fail
+        pass
     return None
 
 def find_mtr_connection(start_station: str, end_station: str) -> dict:
@@ -163,9 +156,6 @@ def osrm_polyline(coords: list[list[float]], style: str = "dotted"):
     return [[lat, lng, style] for lng, lat in coords]
 
 
-# ----------------------------------------------------------
-# ENHANCED ROUTE WITH TRANSIT INSTRUCTIONS
-# ----------------------------------------------------------
 
 @router.post("/enhanced")
 async def enhanced_route(req: RouteRequest):
@@ -313,7 +303,6 @@ async def transit_detail(req: TransitDetailRequest):
     
     route_options = []
     
-    # Find nearby stops at destination for transfers
     end_stops = await query_nearby(req.end_lat, req.end_lng, radius_m=800, limit=20)
     bus_stops_at_end = [s for s in end_stops if s["type"] == "Bus Stop"]
     mtr_stops_at_end = [s for s in end_stops if s["type"] == "MTR"]
@@ -323,37 +312,29 @@ async def transit_detail(req: TransitDetailRequest):
     walk_to_url = f"{OSRM_WALK_URL}{walk_to_stop_coords}?overview=full&geometries=geojson"
     walk_to_resp = requests.get(walk_to_url).json()
     initial_walk_dist = round(walk_to_resp["routes"][0]["distance"]) if walk_to_resp.get("routes") else 0
-    # Calculate realistic walking time: 5 km/h = 83.3 m/min
     initial_walk_time = max(1, round(initial_walk_dist / 83.3)) if initial_walk_dist > 0 else 0
     initial_walk_display = f"{initial_walk_dist / 1000:.1f} km" if initial_walk_dist >= 1000 else f"{initial_walk_dist}m"
     initial_walk_time = calculate_walk_time(initial_walk_dist) if initial_walk_dist > 0 else 0
     initial_walk_display = format_distance(initial_walk_dist)
     
-    # Get real bus routes for the starting stop
     real_bus_routes = []
     if req.stop_type == "Bus":
-        # Extract stop ID from stop name (format: "NAME (STOP_ID)")
         stop_id_match = re.search(r'\(([A-Z0-9-]+)\)', req.stop_name)
         if stop_id_match:
             stop_id = stop_id_match.group(1)
             real_bus_routes = await get_bus_routes_for_stop(stop_id)
     
-    # Extract unique route numbers
     unique_routes = list(set([r["route"] for r in real_bus_routes[:10]])) if real_bus_routes else []
     
-    # If no routes from API, use common Hong Kong bus routes as fallback
     if not unique_routes:
         unique_routes = COMMON_HK_BUS_ROUTES
     
-    # ==================== OPTION 1: Direct Bus (if available) ====================
     if req.stop_type == "Bus":
-        # Create direct bus option (simplified version if no destination stops found)
         destination_stop_name = bus_stops_at_end[0]["name"] if bus_stops_at_end else "destination area"
         final_walk_dist = round(bus_stops_at_end[0]["distance"]) if bus_stops_at_end else 200
         final_walk_time = calculate_walk_time(final_walk_dist)
         final_walk_display = format_distance(final_walk_dist)
         
-        # Create bus list string from available routes
         bus_list_str = ", ".join(unique_routes[:4]) if unique_routes else "available bus"
         
         direct_bus_option = {
@@ -386,18 +367,14 @@ async def transit_detail(req: TransitDetailRequest):
         }
         route_options.append(direct_bus_option)
     
-    # ==================== OPTION 2: Bus with Transfer ====================
     if req.stop_type == "Bus" and bus_stops_at_end:
-        # Find major interchange nearby
         nearby_major_stops = await query_nearby(req.stop_lat, req.stop_lng, radius_m=1500, limit=15, types=["Bus Stop"])
         
-        # Look for interchange in stop names
         interchange_stops = [s for s in nearby_major_stops if "INTERCHANGE" in s["name"].upper() or "TERMINUS" in s["name"].upper()]
         
         if interchange_stops:
             transfer_stop = interchange_stops[0]
             
-            # Get routes from transfer stop
             transfer_stop_match = re.search(r'\(([A-Z0-9-]+)\)', transfer_stop["name"])
             transfer_routes = []
             if transfer_stop_match:
@@ -452,21 +429,17 @@ async def transit_detail(req: TransitDetailRequest):
             }
             route_options.append(bus_transfer_option)
     
-    # ==================== OPTION 3: MTR Route ====================
     if mtr_stops_at_end:
-        # Find MTR station near starting stop
         nearby_mtr = await query_nearby(req.stop_lat, req.stop_lng, radius_m=1500, limit=5, types=["MTR"])
         
         if nearby_mtr:
             start_mtr = nearby_mtr[0]
             end_mtr = mtr_stops_at_end[0]
             
-            # Find real MTR connection with line names
             start_station_name = start_mtr['name'].replace(" Station", "")
             end_station_name = end_mtr['name'].replace(" Station", "")
             mtr_connection = find_mtr_connection(start_station_name, end_station_name)
             
-            # Build MTR instruction
             if mtr_connection.get("direct"):
                 mtr_instruction = f"Take {mtr_connection['line']} from {start_station_name} to {end_station_name}"
                 exit_suggestion = "Follow exit signs"
@@ -507,9 +480,7 @@ async def transit_detail(req: TransitDetailRequest):
             }
             route_options.append(mtr_walk_option)
             
-            # ==================== OPTION 4: MTR + Bus ====================
             if bus_stops_at_end:
-                # Get real bus routes near MTR exit
                 end_mtr_bus_stops = await query_nearby(end_mtr["lat"], end_mtr["lng"], radius_m=300, limit=5, types=["Bus Stop"])
                 
                 feeder_routes = []
@@ -561,16 +532,13 @@ async def transit_detail(req: TransitDetailRequest):
                 }
                 route_options.append(mtr_bus_option)
     
-    # ==================== OPTION 5: Ferry (if available) ====================
     if req.stop_type == "Ferry":
-        # Find ferry piers near destination
         end_ferry_piers = [s for s in end_stops if s["type"] == "Ferry Pier"]
         
         if end_ferry_piers:
-            # Simple ferry option
             ferry_option = {
                 "option_name": "⛴️ Ferry",
-                "total_duration_min": initial_walk_time + 15 + 5,  # walk + ferry + walk
+                "total_duration_min": initial_walk_time + 15 + 5,
                 "steps": [
                     {
                         "type": "walk",
@@ -603,11 +571,6 @@ async def transit_detail(req: TransitDetailRequest):
     }
 
 
-# ----------------------------------------------------------
-# SINGLE ROUTE
-# ----------------------------------------------------------
-# SINGLE ROUTE
-# ----------------------------------------------------------
 
 @router.post("/polyline")
 def route_polyline(req: RouteRequest):
@@ -627,9 +590,6 @@ def route_polyline(req: RouteRequest):
     }
 
 
-# ----------------------------------------------------------
-# MULTI-STOP ROUTE (in order clicked)
-# ----------------------------------------------------------
 
 @router.post("/multistop")
 def multistop(req: MultiStopRequest):
@@ -637,7 +597,6 @@ def multistop(req: MultiStopRequest):
     if len(req.points) < 2:
         return {"polyline": []}
 
-    # Build OSRM coordinate string
     coord_list = ";".join([f"{p['lng']},{p['lat']}" for p in req.points])
     url = f"{OSRM_URL}{coord_list}?overview=full&geometries=geojson"
 
@@ -662,9 +621,6 @@ def multistop(req: MultiStopRequest):
         return {"error": f"Routing error: {str(e)}"}
 
 
-# ----------------------------------------------------------
-# AI OPTIMIZED ROUTE (Nearest Neighbor TSP)
-# ----------------------------------------------------------
 
 @router.post("/optimize")
 def optimize(req: OptimizeRequest):
@@ -673,7 +629,6 @@ def optimize(req: OptimizeRequest):
     if len(pts) < 3:
         return {"error": "Need at least 3 points"}
 
-    # Build coordinates string for OSRM table (lng,lat)
     coord_list = ";".join([f"{p['lng']},{p['lat']}" for p in pts])
     table_url = f"http://router.project-osrm.org/table/v1/driving/{coord_list}?annotations=distance,duration"
 
@@ -684,16 +639,12 @@ def optimize(req: OptimizeRequest):
     except Exception as e:
         return {"error": f"OSRM table request failed: {str(e)}"}
 
-    # Prefer durations (seconds) for optimization; fallback to distances (meters)
     matrix = tbl.get("durations") or tbl.get("distances")
     if not matrix:
         return {"error": "OSRM table did not return a distances/durations matrix"}
 
-    # matrix is a square NxN list
-    # Use nearest-neighbor + 2-opt TSP solver (in tsp.py)
     order = tsp.solve_tsp_nearest_2opt(matrix, start=0)
 
-    # Build ordered coordinate list for final route
     ordered_pts = [pts[i] for i in order]
     coord_list_ordered = ";".join([f"{p['lng']},{p['lat']}" for p in ordered_pts])
     route_url = f"{OSRM_URL}{coord_list_ordered}?overview=full&geometries=geojson"
@@ -729,7 +680,6 @@ def alternatives(req: AlternativesRequest):
     if not pts or len(pts) < 2:
         return {"alternatives": []}
 
-    # Base (in-order) route
     coord_list = ";".join([f"{p['lng']},{p['lat']}" for p in pts])
     url = f"{OSRM_URL}{coord_list}?overview=full&geometries=geojson"
     try:
@@ -744,9 +694,7 @@ def alternatives(req: AlternativesRequest):
     except Exception as e:
         base_obj = None
 
-    # Try optimized alternative via existing optimize logic
     try:
-        # Build table for optimization
         table_coord_list = coord_list
         table_url = f"http://router.project-osrm.org/table/v1/driving/{table_coord_list}?annotations=distance,duration"
         tbl = requests.get(table_url, timeout=10).json()
@@ -774,7 +722,6 @@ def alternatives(req: AlternativesRequest):
     if base_obj:
         alts.append(base_obj)
     if opt_obj:
-        # avoid duplicate if same as base
         if not (base_obj and abs(base_obj['distance_m'] - opt_obj['distance_m']) < 1):
             alts.append(opt_obj)
 

@@ -4,7 +4,7 @@
   import { page } from "$app/stores";
   import { onMount } from "svelte";
 
-  // Types
+
   type Place = { name: string; lat: number; lng: number };
   type LatLng = { lat: number; lng: number };
   type Marker = { lat: number; lng: number; title: string; color: string };
@@ -13,7 +13,7 @@
   type RouteStep = { type: string; instruction: string; distance_m?: number; duration_min: number; action?: string; bus_number?: string; get_off_at?: string; exit_info?: string };
   type RouteOption = { option_name: string; total_duration_min: number; steps: RouteStep[] };
 
-  // State
+
   let start: Place | null = null;
   let end: Place | null = null;
   let startName = "";
@@ -41,10 +41,10 @@
   let refreshInterval: number | null = null;
   let lastRefreshTime = Date.now();
 
-  // Constants
-  const API_BASE = "http://127.0.0.1:8000/api/route";
-  
-  // MTR Line Colors
+
+  const API_BASE = "http:
+
+
   const MTR_LINE_COLORS: { [key: string]: string } = {
     'Tsuen Wan Line': '#E2231A',
     'Island Line': '#0860A8',
@@ -56,20 +56,20 @@
     'Disneyland Resort Line': '#F173AC',
     'Airport Express': '#007A70',
   };
-  
-  // Get MTR line color from stop name
+
+
   function getMTRLineColor(stopName: string): string {
-    // Try to detect line from stop name or return default
+
     for (const [line, color] of Object.entries(MTR_LINE_COLORS)) {
-      // This is a simplified check - in production you'd query actual line info
+
       if (stopName.includes(line.split(' ')[0])) return color;
     }
-    return '#0860A8'; // Default to Island Line blue
+    return '#0860A8';
   }
 
-  // Parse URL params and populate fields on mount
+
   onMount(() => {
-    // Load recent locations from localStorage
+
     const saved = localStorage.getItem('recentLocations');
     if (saved) {
       try {
@@ -78,10 +78,10 @@
         recentLocations = [];
       }
     }
-    
+
     const params = $page.url.searchParams;
-    
-    // Read coordinates directly from URL params
+
+
     const fromLat = params.get('fromLat');
     const fromLng = params.get('fromLng');
     const fromName = params.get('fromName');
@@ -92,7 +92,7 @@
     const fromParam = params.get('from');
     const toParam = params.get('to');
 
-    // Walk-only mode: hide transit sections and focus on walking
+
     if (walkOnlyParam && (walkOnlyParam === '1' || walkOnlyParam.toLowerCase() === 'true')) {
       walkOnly = true;
     }
@@ -116,7 +116,7 @@
     }
 
     if (fromParam && !start) {
-      // from param is "lat,lng" format
+
       const [lat, lng] = fromParam.split(',').map(Number);
       if (!isNaN(lat) && !isNaN(lng)) {
         start = { name: "Selected Location", lat, lng };
@@ -125,17 +125,17 @@
     }
 
     if (toParam && !end) {
-      // to param is the station name (we'll geocode it or use it as is)
+
       endName = toParam;
-      // Try to fetch coordinates for this station name via the geocode API
-      fetch(`http://127.0.0.1:8000/api/geocode/?query=${encodeURIComponent(toParam)}`)
+
+      fetch(`http:
         .then(res => res.json())
         .then(data => {
           if (data && data.lat && data.lng) {
             end = { name: toParam, lat: data.lat, lng: data.lng };
             endName = toParam;
             updateMarkers();
-            // Auto-trigger route if both start and end are set
+
             if (start && end) {
               setTimeout(() => getRoute(), 500);
             }
@@ -145,33 +145,33 @@
     }
 
     updateMarkers();
-    
-    // Auto-trigger route if both start and end are set
+
+
     if (start && end) {
       setTimeout(() => getRoute(), 500);
     }
-    
-    // Start auto-refresh for transit ETAs (every 60 seconds)
+
+
     startAutoRefresh();
-    
-    // Cleanup on unmount
+
+
     return () => {
       stopAutoRefresh();
     };
   });
-  
-  // Auto-refresh transit ETAs
+
+
   function startAutoRefresh() {
-    if (refreshInterval) return; // Already running
+    if (refreshInterval) return;
     refreshInterval = window.setInterval(() => {
       if (selectedTransit && routeOptions.length > 0) {
-        // Silently refresh transit details
+
         getTransitDetails(selectedTransit, true);
         lastRefreshTime = Date.now();
       }
-    }, 60000); // 60 seconds
+    }, 60000);
   }
-  
+
   function stopAutoRefresh() {
     if (refreshInterval) {
       clearInterval(refreshInterval);
@@ -179,14 +179,14 @@
     }
   }
 
-  // Update markers on map
+
   function updateMarkers() {
     markers = [];
     if (start) markers.push({ ...start, title: "Start", color: "#4CAF50" });
     if (end) markers.push({ ...end, title: "Destination", color: "#FF5722" });
   }
 
-  // Swap start and end locations
+
   function swapLocations() {
     const temp = start;
     const tempName = startName;
@@ -200,7 +200,7 @@
     }
   }
 
-  // Clear all selections and reset route
+
   function clearRoute() {
     start = null;
     end = null;
@@ -220,7 +220,7 @@
     currentStep = 0;
   }
 
-  // Use My Location as start
+
   function useMyLocation() {
     navigator.geolocation.getCurrentPosition(
       pos => {
@@ -239,7 +239,7 @@
     );
   }
 
-  // MAP CLICK → set start first, then end
+
   function handleMapClick(e: CustomEvent<{ lat: number; lng: number }>) {
     if (!start) {
       start = { name: "Picked Location", lat: e.detail.lat, lng: e.detail.lng };
@@ -254,14 +254,14 @@
     }
   }
 
-  // GET ROUTE WITH ENHANCED INSTRUCTIONS
+
   async function getRoute() {
     if (!start || !end) {
       alert("Select start and destination first!");
       return;
     }
 
-    // Save to recent locations
+
     saveToRecent(start);
     saveToRecent(end);
 
@@ -304,15 +304,15 @@
       alert("Failed to get route. Please try again.");
     }
   }
-  
-  // Get detailed transit route instructions
+
+
   async function getTransitDetails(option: TransitOption, silentRefresh = false) {
     if (!silentRefresh) {
       selectedTransit = option;
       routeOptions = [];
       selectedRouteOption = null;
     }
-    
+
     try {
       const res = await fetch(`${API_BASE}/transit-detail`, {
         method: "POST",
@@ -328,20 +328,20 @@
           stop_lng: option.stop_lng
         })
       });
-      
+
       if (!res.ok) {
         throw new Error(`HTTP error! status: ${res.status}`);
       }
-      
+
       const data = await res.json();
       routeOptions = data.route_options || [];
-      
-      // Auto-select and show first option immediately
+
+
       if (routeOptions.length > 0 && !silentRefresh) {
         selectRouteOption(routeOptions[0]);
       }
-      
-      // Auto-select first option and expand sections
+
+
       if (routeOptions.length > 0) {
         selectRouteOption(routeOptions[0]);
         collapsedSections['routeOptions'] = false;
@@ -354,21 +354,21 @@
       }
     }
   }
-  
+
   function selectRouteOption(option: RouteOption) {
     selectedRouteOption = option;
   }
 
-  // Save location to recent
+
   function saveToRecent(place: Place) {
     const exists = recentLocations.find(p => p.lat === place.lat && p.lng === place.lng);
     if (!exists) {
-      recentLocations = [place, ...recentLocations.slice(0, 9)]; // Keep 10 most recent
+      recentLocations = [place, ...recentLocations.slice(0, 9)];
       localStorage.setItem('recentLocations', JSON.stringify(recentLocations));
     }
   }
 
-  // Share route as URL
+
   function shareRoute() {
     if (!start || !end) {
       alert('Please select start and destination first');
@@ -388,7 +388,7 @@
     });
   }
 
-  // Toggle section collapse
+
   function toggleSection(section: string) {
     collapsedSections[section] = !collapsedSections[section];
   }
@@ -416,7 +416,7 @@
   <div class="inputs">
 
     <button on:click={useMyLocation}>📍 Use My Location</button>
-      <!-- START -->
+
       <SearchBar
         placeholder="Start location..."
         bind:value={startName}
@@ -429,7 +429,7 @@
 
       <button class="swap-btn" on:click={swapLocations} title="Swap start and destination">↕️</button>
 
-      <!-- END -->
+
       <SearchBar
         placeholder="Destination..."
         bind:value={endName}
@@ -465,7 +465,7 @@
           <button class="nav-mode-btn" on:click={() => navigationMode = true}>🧭 Navigation</button>
         {/if}
       </div>
-      
+
       {#if !walkOnly && transitOptions.length > 0}
         <div class="transit-section">
           <h3>🚇 Nearby Public Transport</h3>
@@ -481,7 +481,7 @@
           {/each}
         </div>
       {/if}
-      
+
       {#if !walkOnly && routeOptions.length > 0 && selectedTransit}
         <div class="route-options-section">
           <div class="section-header">
@@ -499,8 +499,8 @@
           </div>
           <div class="options-grid" class:show-all={showAllRoutes}>
               {#each (showAllRoutes ? routeOptions : routeOptions.slice(0, 3)) as option}
-                <button 
-                  class="route-option-card" 
+                <button
+                  class="route-option-card"
                   class:selected={selectedRouteOption === option}
                   on:click={() => selectRouteOption(option)}
                 >
@@ -528,7 +528,7 @@
             </div>
         </div>
       {/if}
-      
+
       {#if !walkOnly && selectedRouteOption}
         <div class="detailed-route">
           <h3>📍 {selectedRouteOption.option_name}</h3>
@@ -581,7 +581,7 @@
           </button>
           {#if !collapsedSections['walking']}
             {#if navigationMode && instructions.length > 0}
-            <!-- Navigation Mode: Show one step at a time -->
+
             <div class="navigation-mode">
               <div class="step current-step">
                 <div class="step-number">{currentStep + 1}</div>
@@ -769,10 +769,10 @@
     background: #059669;
   }
 
-  /* Make search bars expand equally and match button height */
+
   .inputs :global(.search-wrapper) { max-width: none; width: 100%; }
   .inputs :global(.input-wrap) { height: 48px; }
-  
+
   .instructions-header {
     display: flex;
     justify-content: space-between;
@@ -859,7 +859,7 @@
     color: #64748b;
     font-weight: 600;
   }
-  
+
   .instructions-panel {
     margin-top: 20px;
     background: #f8f9fa;
@@ -868,22 +868,22 @@
     max-height: 500px;
     overflow-y: auto;
   }
-  
+
   .instructions-panel h2 {
     margin-top: 0;
     color: #1e40af;
   }
-  
+
   .instructions-panel h3 {
     margin: 20px 0 10px 0;
     color: #334155;
     font-size: 1.1em;
   }
-  
+
   .transit-section {
     margin-bottom: 20px;
   }
-  
+
   .transit-option {
     display: flex;
     align-items: center;
@@ -896,55 +896,55 @@
     cursor: pointer;
     transition: all 0.2s;
   }
-  
+
   .transit-option:hover {
     border-color: #3b82f6;
     background: #f0f7ff;
     transform: translateX(5px);
   }
-  
+
   .arrow {
     margin-left: auto;
     font-size: 20px;
     color: #6b7280;
   }
-  
+
   .transit-icon {
     font-size: 2em;
   }
-  
+
   .transit-details {
     flex: 1;
   }
-  
+
   .transit-details strong {
     color: #1e40af;
     display: block;
     margin-bottom: 5px;
   }
-  
+
   .transit-details p {
     margin: 0;
     color: #64748b;
   }
-  
+
   .walking-section {
     background: white;
     padding: 15px;
     border-radius: 8px;
   }
-  
+
   .step {
     display: flex;
     gap: 15px;
     padding: 12px 0;
     border-bottom: 1px solid #e2e8f0;
   }
-  
+
   .step:last-child {
     border-bottom: none;
   }
-  
+
   .step-number {
     background: #3b82f6;
     color: white;
@@ -957,20 +957,20 @@
     font-weight: bold;
     flex-shrink: 0;
   }
-  
+
   .step-content {
     flex: 1;
   }
-  
+
   .step-content p {
     margin: 0 0 5px 0;
     color: #334155;
   }
-  
+
   .step-content small {
     color: #64748b;
   }
-  
+
   .detailed-route {
     margin-top: 20px;
     background: white;
@@ -978,32 +978,32 @@
     border-radius: 10px;
     border: 2px solid #3b82f6;
   }
-  
+
   .detailed-route h3 {
     margin-top: 0;
     color: #1e40af;
   }
-  
+
   .bus-info {
     margin: 5px 0;
     color: #059669;
     font-size: 1.05em;
   }
-  
+
   .stop-info {
     margin: 5px 0;
     color: #dc2626;
   }
-  
+
   .instruction {
     margin: 8px 0;
     color: #475569;
   }
-  
+
   .route-options-section {
     margin: 20px 0;
   }
-  
+
   .section-header {
     display: flex;
     justify-content: space-between;
@@ -1012,12 +1012,12 @@
     flex-wrap: wrap;
     gap: 10px;
   }
-  
+
   .section-title h3 {
     margin: 0;
     color: #1e40af;
   }
-  
+
   .show-all-btn {
     padding: 6px 14px;
     background: #8b5cf6;
@@ -1028,12 +1028,12 @@
     font-size: 0.85em;
     transition: all 0.2s;
   }
-  
+
   .show-all-btn:hover {
     background: #7c3aed;
     transform: translateY(-1px);
   }
-  
+
   .refresh-indicator {
     padding: 6px 12px;
     background: #f0fdf4;
@@ -1042,17 +1042,17 @@
     font-size: 0.8em;
     border: 1px solid #bbf7d0;
   }
-  
+
   .route-options-section h3 {
     margin-bottom: 15px;
     color: #1e40af;
   }
-  
+
   .options-grid {
     display: grid;
     gap: 12px;
   }
-  
+
   .route-option-card {
     background: white;
     border: 2px solid #e5e7eb;
@@ -1063,33 +1063,33 @@
     text-align: left;
     width: 100%;
   }
-  
+
   .route-option-card:hover {
     border-color: #3b82f6;
     background: #f0f7ff;
     transform: translateY(-2px);
     box-shadow: 0 4px 8px rgba(59, 130, 246, 0.2);
   }
-  
+
   .route-option-card.selected {
     border-color: #3b82f6;
     background: #eff6ff;
     box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
   }
-  
+
   .option-header {
     display: flex;
     justify-content: space-between;
     align-items: center;
     margin-bottom: 10px;
   }
-  
+
   .option-header h4 {
     margin: 0;
     font-size: 1.1em;
     color: #1e293b;
   }
-  
+
   .duration-badge {
     background: #3b82f6;
     color: white;
@@ -1098,23 +1098,23 @@
     font-size: 0.9em;
     font-weight: bold;
   }
-  
+
   .option-summary {
     display: flex;
     align-items: center;
     gap: 5px;
     font-size: 1.3em;
   }
-  
+
   .step-icon {
     opacity: 0.8;
   }
-  
+
   .step-arrow {
     color: #9ca3af;
     font-size: 0.8em;
   }
-  
+
   .route-duration {
     background: #f0f9ff;
     padding: 10px;
@@ -1122,14 +1122,14 @@
     margin-bottom: 15px;
     color: #0c4a6e;
   }
-  
+
   .exit-info {
     margin: 5px 0;
     color: #7c3aed;
     font-weight: 500;
   }
 
-  /* Timeline Stepper Styles */
+
   .timeline {
     padding: 20px 0;
   }
@@ -1272,7 +1272,7 @@
     color: #1e293b;
   }
 
-  /* Section header with multiple controls */
+
   .section-header {
     display: flex;
     align-items: center;

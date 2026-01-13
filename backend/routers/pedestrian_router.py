@@ -44,7 +44,7 @@ class PedestrianNetworkGraph:
     @staticmethod
     def haversine(lat1: float, lng1: float, lat2: float, lng2: float) -> float:
         """Calculate distance in meters between two lat/lng points"""
-        R = 6371000  # Earth radius in meters
+        R = 6371000
         phi1 = math.radians(lat1)
         phi2 = math.radians(lat2)
         delta_phi = math.radians(lat2 - lat1)
@@ -120,12 +120,10 @@ class PedestrianNetworkGraph:
     
     def _find_or_create_node(self, lat: float, lng: float, tolerance: float = 0.0001) -> Optional[str]:
         """Find existing node within tolerance or create new one"""
-        # Check if node exists within tolerance
         for node_id, node in self.nodes.items():
             if abs(node.lat - lat) < tolerance and abs(node.lng - lng) < tolerance:
                 return node_id
         
-        # Create new node
         node_id = f"node_{len(self.nodes)}"
         self.nodes[node_id] = Node(id=node_id, lat=lat, lng=lng)
         self.edges[node_id] = []

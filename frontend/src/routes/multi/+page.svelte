@@ -12,7 +12,7 @@
 
   let poiMarkers: { lat: number; lng: number; name: string; description?: string; type?: string }[] = [];
   let showPois = true;
-  let stopSuggestions: any[] = []; // per-stop POI suggestions (top 3)
+  let stopSuggestions: any[] = [];
 
   let distance = 0;
   let duration = 0;
@@ -23,12 +23,12 @@
   let selectedTransit: any = null;
   let selectedRouteOption: any = null;
 
-  // Per-segment transit state
+
   let segmentTransit: { options: any[]; instructions: any[] }[] = [];
   let segmentSelectedTransit: any[] = [];
   let segmentRouteOptions: any[][] = [];
-  
-  // New features
+
+
   let recentLocations: any[] = [];
   let favoriteLocations: any[] = [];
   let isLoading = false;
@@ -37,11 +37,11 @@
   let showRecent = false;
   let showSummary = true;
   let showTemplates = false;
-  
-  // Route templates
+
+
   let routeTemplates: any[] = [];
-  
-  // Load saved templates
+
+
   function loadTemplates() {
     const saved = localStorage.getItem('routeTemplates');
     if (saved) {
@@ -52,73 +52,73 @@
       }
     }
   }
-  
+
   function saveAsTemplate() {
     if (stops.length < 2) return;
     const name = prompt('Enter template name:');
     if (!name) return;
-    
+
     const template = {
       id: Date.now(),
       name,
       stops: stops.map(s => ({ lat: s.lat, lng: s.lng, title: s.title }))
     };
-    
+
     routeTemplates = [...routeTemplates, template];
     localStorage.setItem('routeTemplates', JSON.stringify(routeTemplates));
   }
-  
+
   function loadTemplate(template: any) {
     stops = template.stops.map((s: any) => ({ ...s, color: '', duration: 0 }));
     updateMarkers();
     showTemplates = false;
   }
-  
+
   function deleteTemplate(id: number) {
     routeTemplates = routeTemplates.filter(t => t.id !== id);
     localStorage.setItem('routeTemplates', JSON.stringify(routeTemplates));
   }
-  
-  // Get stop icon
+
+
   function getStopIcon(index: number): string {
     if (stops.length === 0) return '📍';
     if (index === 0) return '🚩';
     if (index === stops.length - 1) return '🏁';
     return '📍';
   }
-  
-  // Get stop color
+
+
   function getStopColor(index: number): string {
     if (stops.length === 0) return '#3b82f6';
     if (index === 0) return '#10b981';
     if (index === stops.length - 1) return '#ef4444';
     return '#3b82f6';
   }
-  
-  // Insert stop between two existing ones
+
+
   function insertStopBetween(index: number) {
     if (index >= stops.length - 1) return;
-    
+
     const stop1 = stops[index];
     const stop2 = stops[index + 1];
-    
-    // Calculate midpoint
+
+
     const midLat = (stop1.lat + stop2.lat) / 2;
     const midLng = (stop1.lng + stop2.lng) / 2;
-    
+
     const newStop = { lat: midLat, lng: midLng, title: `Stop ${index + 2}`, color: '', duration: 0 };
     stops.splice(index + 1, 0, newStop);
     stops = stops;
     updateMarkers();
   }
-  
-  // Set stop duration
+
+
   function setStopDuration(index: number, minutes: number) {
     stops[index].duration = minutes;
     stops = stops;
   }
 
-  // Load favorites and recent locations on mount
+
   onMount(() => {
     const saved = localStorage.getItem('recentLocations');
     if (saved) {
@@ -169,7 +169,7 @@
     showRecent = false;
   }
 
-  // Get detailed transit route instructions (similar to route planner)
+
   async function getTransitDetails(option: any) {
     selectedTransit = option;
     routeOptions = [];
@@ -183,7 +183,7 @@
     try {
       const start = stops[0];
       const end = stops[stops.length - 1];
-      const res = await fetch(`http://127.0.0.1:8000/api/route/transit-detail`, {
+      const res = await fetch(`http:
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -211,13 +211,13 @@
     selectedRouteOption = option;
   }
 
-  // Fetch transit options for a specific leg i -> i+1
+
   async function fetchTransitForSegment(i: number) {
     const start = stops[i];
     const end = stops[i + 1];
     if (!start || !end) return;
     try {
-      const res = await fetch('http://127.0.0.1:8000/api/route/enhanced', {
+      const res = await fetch('http:
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -239,13 +239,13 @@
     }
   }
 
-  // Fetch detailed route options for a selected segment transit option
+
   async function fetchTransitDetailsForSegment(i: number, option: any) {
     const start = stops[i];
     const end = stops[i + 1];
     if (!start || !end) return;
     try {
-      const res = await fetch('http://127.0.0.1:8000/api/route/transit-detail', {
+      const res = await fetch('http:
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -269,12 +269,12 @@
     }
   }
 
-  // Apply walking path to transit stop
+
   async function applyWalkingPathToTransit(i: number, option: any) {
     const start = stops[i];
     if (!start || !option) return;
     try {
-      const res = await fetch('http://127.0.0.1:8000/api/route/polyline', {
+      const res = await fetch('http:
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -296,7 +296,7 @@
     }
   }
 
-  // Calculate total transit time from all selected route options
+
   function calculateTotalTransitTime(): number {
     let total = 0;
     for (let i = 0; i < stops.length - 1; i++) {
@@ -308,13 +308,13 @@
     return total;
   }
 
-  // UI state
+
   let searchValue = "";
   let alternatives: any[] = [];
 
-  // ---------------------------------------------------
-  // ADD STOP BY CLICKING MAP
-  // ---------------------------------------------------
+
+
+
   function handleMapClick(e: CustomEvent<{ lat: number; lng: number }>) {
     stops = [...stops, {
       lat: e.detail.lat,
@@ -326,7 +326,7 @@
     fetchPoisForStop(stops.length - 1);
   }
 
-  // add stop from search selection
+
   function addStopFromSearch(r: any) {
     if (!r || !r.lat || !r.lon) return;
     stops = [...stops, { lat: r.lat, lng: r.lon, title: r.name || "", color: "" }];
@@ -335,9 +335,9 @@
     fetchPoisForStop(stops.length - 1);
   }
 
-  // ---------------------------------------------------
-  // UPDATE MARKER COLORS + TITLES
-  // ---------------------------------------------------
+
+
+
   function updateMarkers() {
     markers = stops.map((s, i) => ({
       ...s,
@@ -356,9 +356,9 @@
     }));
   }
 
-  // ---------------------------------------------------
-  // UNDO LAST STOP
-  // ---------------------------------------------------
+
+
+
   function undo() {
     stops = stops.slice(0, -1);
     updateMarkers();
@@ -402,9 +402,9 @@
     stops = stops.map((s, idx) => (idx === i ? { ...s, time: t } : s));
   }
 
-  // ---------------------------------------------------
-  // CLEAR ALL
-  // ---------------------------------------------------
+
+
+
   function clearAll() {
     stops = [];
     markers = [];
@@ -413,9 +413,9 @@
     duration = 0;
   }
 
-  // ---------------------------------------------------
-  // GET MULTI-STOP ROUTE
-  // ---------------------------------------------------
+
+
+
   async function getRoute() {
     if (stops.length < 2) {
       errorMessage = "Please add at least Start + Destination.";
@@ -425,11 +425,11 @@
     isLoading = true;
     errorMessage = "";
 
-    // Save to recent
+
     stops.forEach(stop => saveToRecent(stop));
 
     try {
-      const res = await fetch("http://127.0.0.1:8000/api/route/multistop", {
+      const res = await fetch("http:
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ points: stops.map((s) => ({ lat: s.lat, lng: s.lng })) })
@@ -447,13 +447,13 @@
       }
 
       polyline = data.polyline.map((p: [number, number]) => ({ lat: p[0], lng: p[1] }));
-      // clear POI layer by default when new route fetched
+
       poiMarkers = [];
 
       distance = data.distance_m;
       duration = data.duration_s;
 
-      // enhanced fields (from route planner): instructions + transit options
+
       instructions = data.instructions || [];
       transitOptions = data.transit_options || [];
       showInstructions = (instructions.length > 0) || (transitOptions.length > 0);
@@ -467,9 +467,9 @@
     }
   }
 
-  // ---------------------------------------------------
-  // AI OPTIMIZED ROUTE (TSP)
-  // ---------------------------------------------------
+
+
+
   async function optimizeRoute() {
     if (stops.length < 3) {
       errorMessage = "Add at least 3 stops for AI optimization.";
@@ -480,7 +480,7 @@
     errorMessage = "";
 
     try {
-      const res = await fetch("http://127.0.0.1:8000/api/route/optimize", {
+      const res = await fetch("http:
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -524,13 +524,13 @@
     }
   }
 
-  // Fetch nearby POIs for a single stop and show on map
+
   async function fetchNearby(i: number) {
     const s = stops[i];
     if (!s) return;
-    // backward-compatible nearby call (legacy)
+
     try {
-      const res = await fetch(`http://127.0.0.1:8000/api/nearby?lat=${s.lat}&lng=${s.lng}`);
+      const res = await fetch(`http:
       const data = await res.json();
       poiMarkers = (data.results || []).map((p: any) => ({ lat: p.lat, lng: p.lon || p.lng, name: p.name, description: p.desc, type: p.type }));
       showPois = true;
@@ -540,12 +540,12 @@
     }
   }
 
-  // Fetch POI suggestions (top N) from new pois router and keep per-stop suggestions
+
   async function fetchPoisForStop(i: number, limit = 5, category?: string) {
     const s = stops[i];
     if (!s) return;
     try {
-      const url = new URL('http://127.0.0.1:8000/api/pois/nearby');
+      const url = new URL('http:
       url.searchParams.set('lat', String(s.lat));
       url.searchParams.set('lng', String(s.lng));
       url.searchParams.set('limit', String(limit));
@@ -554,7 +554,7 @@
       if (!res.ok) throw new Error(`status ${res.status}`);
       const data = await res.json();
       let results = (data.results || []).map((p: any) => ({ ...p }));
-      // client-side filter fallback if API ignores category
+
       if (category) {
         results = results.filter((p: any) =>
           (p.type && String(p.type).toLowerCase().includes(category.toLowerCase())) ||
@@ -562,7 +562,7 @@
         );
       }
       stopSuggestions[i] = results;
-      // trigger reactivity
+
       stopSuggestions = [...stopSuggestions];
     } catch (e) {
       console.warn('pois fetch failed', e);
@@ -577,16 +577,16 @@
     arr.splice(i + 1, 0, newStop);
     stops = arr;
     updateMarkers();
-    // fetch suggestions for the newly inserted stop as well
+
     fetchPoisForStop(i + 1);
   }
 
-  // Route from stop i to a nearby POI
+
   async function routeToPoi(i: number, poi: any) {
     const s = stops[i];
     if (!s || !poi) return;
     try {
-      const res = await fetch('http://127.0.0.1:8000/api/route/polyline', {
+      const res = await fetch('http:
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -610,14 +610,14 @@
     }
   }
 
-  // Generate a small inline SVG path preview for an alternative polyline
+
   function svgPreviewPath(points: [number, number][], w = 160, h = 60) {
     if (!points || points.length === 0) return '';
     const lats = points.map(p => p[0]);
     const lngs = points.map(p => p[1]);
     const minLat = Math.min(...lats), maxLat = Math.max(...lats);
     const minLng = Math.min(...lngs), maxLng = Math.max(...lngs);
-    const pad = 0.02; // small padding
+    const pad = 0.02;
     const latRange = maxLat - minLat || 0.0001;
     const lngRange = maxLng - minLng || 0.0001;
     const coords = points.map(p => {
@@ -628,7 +628,7 @@
     return `M ${coords.join(' L ')}`;
   }
 
-  // Save itinerary to localStorage
+
   function saveItinerary(name = "untitled") {
     const payload = { name, stops };
     const key = `itinerary:${name}`;
@@ -636,14 +636,14 @@
     alert(`Saved as ${key}`);
   }
 
-  // Generate share link with encoded stops in query
+
   function shareItinerary() {
     const encoded = encodeURIComponent(JSON.stringify(stops));
     const url = `${location.origin}${location.pathname}?stops=${encoded}`;
     navigator.clipboard?.writeText(url).then(() => alert('Share link copied to clipboard'));
   }
 
-  // Try to load stops from ?stops= query param
+
   function loadFromQuery() {
     const params = new URLSearchParams(location.search);
     const s = params.get('stops');
@@ -659,19 +659,19 @@
     }
   }
 
-  
 
-  // Request route alternatives (backend must support)
+
+
   async function getAlternatives() {
     if (stops.length < 2) return;
-    const res = await fetch('http://127.0.0.1:8000/api/route/alternatives', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ points: stops.map(s => ({ lat: s.lat, lng: s.lng })) }) });
+    const res = await fetch('http:
     try {
       const data = await res.json();
       alternatives = data.alternatives || [];
     } catch (e) { alternatives = []; }
   }
 
-  // initialize from query param when component mounts
+
   const originalOnMount = onMount;
   onMount(() => {
     loadFromQuery();
@@ -809,10 +809,10 @@
                 <div class="left-col">
                   <span class="drag-handle">☰</span>
                   <input class="title" value={s.title} placeholder={`Stop ${i + 1}`} on:input={(ev: Event) => updateTitle(i, (ev.currentTarget as HTMLInputElement).value)} />
-                  <input 
-                    type="number" 
-                    class="duration-input" 
-                    placeholder="Wait (min)" 
+                  <input
+                    type="number"
+                    class="duration-input"
+                    placeholder="Wait (min)"
                     value={s.duration || 0}
                     on:input={(ev: Event) => setStopDuration(i, parseInt((ev.currentTarget as HTMLInputElement).value) || 0)}
                     min="0"
@@ -827,7 +827,7 @@
                 </div>
                 <div class="coords">({s.lat.toFixed(5)}, {s.lng.toFixed(5)})</div>
               </li>
-              
+
               {#if i < stops.length - 1}
                 <li class="insert-between">
                   <button class="insert-btn" on:click={() => insertStopBetween(i)}>
@@ -879,7 +879,7 @@
                   {/if}
                 </li>
               {/if}
-              <!-- Quick Nearby Chips -->
+
               <li class="nearby-chips">
                 <span class="chips-label">Nearby:</span>
                 <button class="chip" title="Nearby MTR" on:click={() => fetchPoisForStop(i, 5, 'mtr')}>MTR</button>
@@ -922,7 +922,7 @@
         {/if}
       </div>
 
-      
+
 
       {#if alternatives.length}
         <div class="alts">
@@ -952,7 +952,7 @@
           <button on:click={() => saveItinerary('saved-' + Date.now())}>Save</button>
         </div>
       {/if}
-      
+
       {#if showInstructions && (transitOptions.length > 0 || instructions.length > 0)}
         <div class="instructions-panel">
           <h2>🗺️ Route Instructions</h2>
@@ -978,8 +978,8 @@
               <h3>🛣️ Route Options via {selectedTransit.stop_name}</h3>
               <div class="options-grid">
                 {#each routeOptions as option}
-                  <button 
-                    class="route-option-card" 
+                  <button
+                    class="route-option-card"
                     class:selected={selectedRouteOption === option}
                     on:click={() => selectRouteOption(option)}
                   >
@@ -1089,7 +1089,7 @@
     box-shadow: 0 2px 12px rgba(0, 0, 0, 0.08);
   }
 
-  /* Error Banner */
+
   .error-banner {
     background: linear-gradient(135deg, #fee2e2 0%, #fecaca 100%);
     border: 1px solid #fca5a5;
@@ -1130,7 +1130,7 @@
     }
   }
 
-  /* Buttons */
+
   .buttons {
     display: flex;
     gap: 8px;
@@ -1183,7 +1183,7 @@
     }
   }
 
-  /* Quick Access Sections */
+
   .quick-access {
     margin-bottom: 15px;
     display: flex;
@@ -1242,7 +1242,7 @@
     box-shadow: 0 4px 12px rgba(16, 185, 129, 0.4);
   }
 
-  /* Templates Panel */
+
   .template-btn {
     background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%);
     box-shadow: 0 2px 8px rgba(245, 158, 11, 0.3);
@@ -1307,7 +1307,7 @@
     font-size: 14px;
   }
 
-  /* Route Summary Card */
+
   .route-summary {
     background: linear-gradient(135deg, #dbeafe 0%, #bfdbfe 100%);
     border: 1px solid #93c5fd;
@@ -1367,7 +1367,7 @@
     color: #1e40af;
   }
 
-  /* Empty State */
+
   .empty-state {
     text-align: center;
     padding: 40px 20px;
@@ -1393,7 +1393,7 @@
     color: #6b7280;
   }
 
-  /* Stops Section */
+
   .stops {
     margin: 15px 0;
   }
@@ -1447,7 +1447,7 @@
     align-items: center;
   }
 
-  /* Color-coded stop borders */
+
   .stop-row:first-child {
     border-left: 4px solid #10b981;
     background: linear-gradient(135deg, #ecfdf5 0%, #d1fae5 100%);
@@ -1548,7 +1548,7 @@
     margin-top: -4px;
   }
 
-  /* Suggestions */
+
   .suggestions-row {
     list-style: none;
     margin: 12px 0 16px 0;
@@ -1567,14 +1567,14 @@
     font-size: 13px;
   }
 
-  /* Segment transit */
+
   .segment-transit { margin: 8px 0 14px 0; }
   .segment-header { display:flex; justify-content: space-between; align-items:center; }
   .segment-header .segment-fetch { padding:6px 10px; font-size:12px; }
   .segment-options { display:flex; flex-wrap:wrap; gap:8px; margin-top:8px; }
   .segment-route-options { display:grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap:10px; margin-top:10px; }
 
-  /* Transit option wrapper */
+
   .transit-option-wrapper {
     display: flex;
     gap: 6px;
@@ -1604,7 +1604,7 @@
     box-shadow: 0 3px 10px rgba(245, 158, 11, 0.3);
   }
 
-  /* Nearby chips */
+
   .nearby-chips {
     display: flex;
     align-items: center;
@@ -1695,7 +1695,7 @@
     background: linear-gradient(135deg, #8b5cf6 0%, #7c3aed 100%);
   }
 
-  /* Stats */
+
   .stats {
     margin-top: 15px;
     background: linear-gradient(135deg, #dbeafe 0%, #e0f2fe 100%);
@@ -1706,7 +1706,7 @@
     box-shadow: 0 2px 8px rgba(3, 102, 214, 0.1);
   }
 
-  /* Alternatives */
+
   .alts-grid {
     display: flex;
     gap: 12px;
@@ -1763,7 +1763,7 @@
     font-size: 11px;
   }
 
-  /* Transit */
+
   .transit-section {
     margin-top: 15px;
     padding: 12px;
@@ -1813,7 +1813,7 @@
     color: #6b7280;
   }
 
-  /* Route Options */
+
   .route-options-section {
     margin-top: 15px;
     padding: 12px;
@@ -1895,7 +1895,7 @@
     width: 100%;
   }
 
-  /* Instructions */
+
   .instructions-list {
     margin-top: 15px;
     padding: 12px;
@@ -1925,7 +1925,7 @@
     color: #6b7280;
   }
 
-  /* Insert Between Stops */
+
   .insert-between {
     display: flex;
     justify-content: center;
@@ -1956,7 +1956,7 @@
     transform: translateY(-2px);
   }
 
-  /* Animations */
+
   @keyframes slideDown {
     from {
       opacity: 0;
@@ -1970,7 +1970,7 @@
     }
   }
 
-  /* Responsive */
+
   @media (max-width: 768px) {
     .top-row {
       flex-direction: column;

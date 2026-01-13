@@ -94,7 +94,7 @@
     transition: all 0.3s ease;
     box-shadow: 0 4px 12px rgba(37, 99, 235, 0.3);
   }
-  
+
   :global(button:hover) {
     background: linear-gradient(135deg, #2563eb 0%, #1e40af 100%);
     transform: translateY(-2px);

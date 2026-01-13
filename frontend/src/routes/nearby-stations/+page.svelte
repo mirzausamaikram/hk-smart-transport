@@ -15,9 +15,9 @@
   let center = { lat: 22.3027, lng: 114.1772 };
   let stations: Station[] = [];
   let loading = false;
-  let searchRadius = 800; // meters
+  let searchRadius = 800;
 
-  // Geolocation permission tracking
+
   let geoStatus: "idle" | "granted" | "prompt" | "denied" = "idle";
 
   let activeType = "ALL";
@@ -39,7 +39,7 @@
         fetchNearby();
       },
       (err) => {
-        // Permission denied or other error
+
         geoStatus = err.code === 1 ? "denied" : "prompt";
         console.warn("Geolocation error:", err);
       },
@@ -49,45 +49,45 @@
 
   onMount(async () => {
     try {
-      // Detect geolocation permission state and prompt if possible
+
       if ((navigator as any).permissions && (navigator as any).permissions.query) {
         const result = await (navigator as any).permissions.query({ name: "geolocation" });
         const state = result.state as "granted" | "prompt" | "denied";
-        
+
         if (state === "granted") {
-          // Already granted - just get location, don't show banner
+
           geoStatus = "granted";
           useMyLocation();
         } else if (state === "denied") {
-          // Explicitly denied
+
           geoStatus = "denied";
         } else {
-          // Prompt needed - try once silently first
+
           geoStatus = "idle";
           useMyLocation();
         }
       } else {
-        // Fallback: attempt to request, browser will prompt
+
         geoStatus = "idle";
         useMyLocation();
       }
     } catch (e) {
-      // Silent fallback
+
       console.warn("Permissions check failed:", e);
     }
   });
 
-  // ✅ FINAL FIXED FETCH FUNCTION
+
   async function fetchNearby() {
     loading = true;
 
     try {
-      // Build URL with type filter if not ALL
-      let url = `http://127.0.0.1:8000/api/nearby/?lat=${center.lat}&lng=${center.lng}&radius=${searchRadius}`;
-      
-      // If specific type selected, request it from backend
+
+      let url = `http:
+
+
       if (activeType !== "ALL") {
-        // Convert display name to backend type name
+
         const typeMap: { [key: string]: string } = {
           "Bus Stop": "Bus Stop",
           "MTR": "MTR",
@@ -97,10 +97,10 @@
         };
         const backendType = typeMap[activeType] || activeType;
         url += `&types=${encodeURIComponent(backendType)}`;
-        // Also increase limit when filtering by type to get more results
+
         url += "&limit=200";
       } else {
-        // When showing ALL types, increase limit so we get a mix
+
         url += "&limit=200";
       }
 
@@ -108,9 +108,9 @@
 
       const data = await res.json();
 
-      // 🔥 Critical final fix: backend returns {results: [...]}
+
       if (data && Array.isArray(data.results)) {
-        // Deduplicate by name: keep first occurrence
+
         const seen = new Set<string>();
         stations = data.results.filter((s: Station) => {
           if (seen.has(s.name)) return false;
@@ -136,7 +136,7 @@
   }
 
   function getDirections(station: Station) {
-    // Navigate to route planner with pre-filled origin and destination
+
     const params = new URLSearchParams({
       fromLat: center.lat.toString(),
       fromLng: center.lng.toString(),
@@ -145,7 +145,7 @@
       toLng: station.lng.toString(),
       toName: station.name
     });
-    // If navigating to a Bus Stop, show walking-only route to that stop
+
     if (station.type === "Bus Stop" || station.type?.toLowerCase().includes("bus")) {
       params.set("walkOnly", "1");
     }
@@ -153,8 +153,8 @@
   }
 
   function openInMaps(station: Station) {
-    // Open in Google Maps with directions from current location
-    const url = `https://www.google.com/maps/dir/?api=1&origin=${center.lat},${center.lng}&destination=${station.lat},${station.lng}&travelmode=walking`;
+
+    const url = `https:
     window.open(url, '_blank');
   }
 </script>
@@ -178,7 +178,7 @@
     </div>
   </div>
 
-  <!-- Filter Buttons -->
+
   <div class="filters">
     {#each types as t}
       <button

@@ -7,7 +7,6 @@ def tour_length(order: List[int], matrix: List[List[float]]) -> float:
     total = 0.0
     for i in range(n - 1):
         total += matrix[order[i]][order[i + 1]]
-    # optionally close the loop (not needed for path that doesn't return)
     return total
 
 
@@ -20,7 +19,6 @@ def nearest_neighbor(matrix: List[List[float]], start: int = 0) -> List[int]:
     visited[start] = True
     current = start
     for _ in range(n - 1):
-        # pick nearest unvisited
         next_idx = None
         best = float('inf')
         for j in range(n):
@@ -36,7 +34,6 @@ def nearest_neighbor(matrix: List[List[float]], start: int = 0) -> List[int]:
 
 
 def two_opt(order: List[int], matrix: List[List[float]]) -> List[int]:
-    # basic 2-opt local improvement
     n = len(order)
     if n < 4:
         return order

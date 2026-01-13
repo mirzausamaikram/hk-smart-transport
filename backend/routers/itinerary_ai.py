@@ -1,10 +1,3 @@
-# backend/itinerary_ai.py
-from fastapi import APIRouter
-from pydantic import BaseModel
-import requests
-from datetime import datetime, timedelta
-import os
-import textwrap
 from fastapi import APIRouter
 from pydantic import BaseModel
 import requests
@@ -16,7 +9,6 @@ import math
 
 router = APIRouter()
 
-# Environment-configurable providers
 OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
 OPENAI_ENDPOINT = "https://api.openai.com/v1/chat/completions"
 OPENAI_MODEL = os.getenv("OPENAI_MODEL", "gpt-3.5-turbo")
@@ -24,7 +16,6 @@ OPENAI_MODEL = os.getenv("OPENAI_MODEL", "gpt-3.5-turbo")
 HF_API_KEY = os.getenv("HUGGINGFACE_API_KEY")
 HF_MODEL = os.getenv("HUGGINGFACE_MODEL", "gpt2")
 
-# Load local POIs dataset
 POIS: List[dict] = []
 try:
     pois_path = os.path.join(os.path.dirname(__file__), "..", "data", "pois.json")
@@ -61,7 +52,6 @@ def build_system_prompt() -> str:
 
 
 def haversine_km(a: Tuple[float, float], b: Tuple[float, float]) -> float:
-    # returns distance in kilometers between two (lat,lng)
     lat1, lon1 = a
     lat2, lon2 = b
     R = 6371.0
@@ -79,7 +69,6 @@ def pick_pois_for_interests(interests: Optional[List[str]], origin: Optional[Tup
         return []
 
     candidates: List[Tuple[float, dict]] = []
-    # Score POIs: primary filter on interest match, then distance if origin provided
     for poi in POIS:
         poi_type = poi.get("type", "").lower()
         match = False
@@ -98,16 +87,14 @@ def pick_pois_for_interests(interests: Optional[List[str]], origin: Optional[Tup
         else:
             dist_km = 9999.0
 
-        # prefer matched types by subtracting a fixed bias so matched types sort earlier
+
         score = dist_km - (5.0 if match else 0.0)
         candidates.append((score, poi))
 
-    # sort by score (lower better)
     candidates.sort(key=lambda x: x[0])
 
     picks = [c[1] for c in candidates[:max_pois]]
 
-    # If not enough matches (edge cases), fill with nearest sightseeing
     if len(picks) < max_pois and origin:
         sightseeing = [p for p in POIS if p.get("type") == "sightseeing" and p not in picks]
         sightseeing.sort(key=lambda p: haversine_km(origin, (float(p.get("lat")), float(p.get("lng")))))
@@ -121,7 +108,6 @@ def pick_pois_for_interests(interests: Optional[List[str]], origin: Optional[Tup
 
 def fallback_itinerary(start: str, end: str, transport: str, interests: Optional[List[str]] = None, budget: Optional[float] = None, pois: Optional[List[dict]] = None, time: Optional[str] = None) -> str:
     """Create a simple deterministic itinerary enriched with local POIs."""
-    # Parse time parameter or default to 09:00
     if time:
         try:
             time_parts = time.split(":")
@@ -134,7 +120,6 @@ def fallback_itinerary(start: str, end: str, transport: str, interests: Optional
         start_time = datetime.now().replace(hour=9, minute=0, second=0, microsecond=0)
     slots = [60, 90, 60, 120, 90]
 
-    # attempt to geocode start to match nearby POIs
     origin = None
     try:
         origin = geocode_place(start)
@@ -142,7 +127,6 @@ def fallback_itinerary(start: str, end: str, transport: str, interests: Optional
         origin = None
 
     if pois is None:
-        # default number of POIs scales with number of interests (2 per interest, min 3)
         desired = max(3, (len(interests) * 2) if interests else 3)
         pois = pick_pois_for_interests(interests, origin=origin, max_pois=desired)
     poi_texts = [f"Visit **{p['name']}** — {p.get('description','')}" for p in pois]
@@ -155,7 +139,7 @@ def fallback_itinerary(start: str, end: str, transport: str, interests: Optional
         f"Head towards **{end}**, using {transport} where appropriate, and finish the day at the destination."
     ]
 
-    lines = ["# 1-Day Hong Kong Itinerary\n"]
+    lines = ["
     current = start_time
     total_cost = 0
     for dur, act in zip(slots, activities):
@@ -164,7 +148,6 @@ def fallback_itinerary(start: str, end: str, transport: str, interests: Optional
         lines.append("")
         current = end_slot
 
-    # estimated cost: sum POI avg_costs + food estimate
     food_est = 150
     poi_costs = sum([p.get('avg_cost_hkd', 0) for p in (pois or [])])
     total_cost = food_est + poi_costs
@@ -177,7 +160,6 @@ def fallback_itinerary(start: str, end: str, transport: str, interests: Optional
     lines.append("")
     lines.append("**Transport tips:** Use Octopus card for convenience; prefer MTR for longer hops.")
 
-    # Append POI quick list
     if pois:
         lines.append("")
         lines.append("**Recommended stops:**")
@@ -197,16 +179,13 @@ def call_huggingface(prompt: str) -> Optional[str]:
         r = requests.post(url, headers=headers, json=payload, timeout=45)
         r.raise_for_status()
         data = r.json()
-        # HF text-generation returns a list with generated_text
         if isinstance(data, list) and len(data) > 0 and "generated_text" in data[0]:
             return data[0]["generated_text"]
         if isinstance(data, dict) and data.get("generated_text"):
             return data.get("generated_text")
-        # fallback: if 'error' in response, return None
     except Exception:
         return None
     return None
-
 
 def geocode_place(place: str) -> Optional[Tuple[float, float]]:
     """Geocode with Nominatim (OpenStreetMap). Returns (lat, lng) or None."""
@@ -227,7 +206,6 @@ def geocode_place(place: str) -> Optional[Tuple[float, float]]:
 @router.post("/ai")
 def generate_ai_itinerary(req: AIRequest):
     system_prompt = build_system_prompt()
-    # build a more detailed user prompt with optional params
     user_prompt = (
         f"Plan a 1-day Hong Kong itinerary starting at **{req.start_place.strip()}** "
         f"and ending at **{req.end_place.strip()}**. Preferred transport: {req.transport}. "
@@ -245,12 +223,10 @@ def generate_ai_itinerary(req: AIRequest):
 
     user_prompt += f"Today is {datetime.now().strftime('%Y-%m-%d')}."
 
-    # Determine POIs near start for inclusion in response
     origin = geocode_place(req.start_place) if req.start_place else None
     desired = max(3, (len(req.interests) * 2) if req.interests else 3)
     selected_pois = pick_pois_for_interests(req.interests, origin=origin, max_pois=desired)
 
-    # Prefer OpenAI if available
     if OPENAI_API_KEY:
         headers = {"Authorization": f"Bearer {OPENAI_API_KEY}", "Content-Type": "application/json"}
         payload = {
@@ -272,20 +248,16 @@ def generate_ai_itinerary(req: AIRequest):
                     return {"itinerary": content, "pois": selected_pois}
             return {"error": "No content returned from LLM", "pois": selected_pois}
         except Exception as e:
-            # try Hugging Face next
             hf_text = call_huggingface(system_prompt + "\n" + user_prompt)
             if hf_text:
                 return {"itinerary": hf_text, "pois": selected_pois}
-            # final fallback
             return {"error": f"LLM request failed: {str(e)}", "itinerary": fallback_itinerary(req.start_place, req.end_place, req.transport, req.interests, req.budget, pois=selected_pois, time=req.time), "pois": selected_pois}
 
-    # If OpenAI not available, try Hugging Face if configured
     if HF_API_KEY:
         hf_text = call_huggingface(system_prompt + "\n" + user_prompt)
         if hf_text:
             return {"itinerary": hf_text, "pois": selected_pois}
 
-    # No LLM key available — return deterministic itinerary with POIs
     itinerary = fallback_itinerary(req.start_place, req.end_place, req.transport, req.interests, req.budget, pois=selected_pois, time=req.time)
     return {"itinerary": itinerary, "pois": selected_pois}
 
@@ -296,7 +268,6 @@ class SummaryRequest(BaseModel):
 
 @router.post("/summary")
 def ai_summary(req: SummaryRequest):
-    # Simple summary endpoint expecting { stops: [{lat,lng, title?}, ...] }
     stops = req.stops or []
     if len(stops) == 0:
         return {"summary": "No stops provided."}
@@ -304,9 +275,7 @@ def ai_summary(req: SummaryRequest):
     start_name = stops[0].get('title') or f"{stops[0].get('lat')},{stops[0].get('lng')}"
     end_name = stops[-1].get('title') or f"{stops[-1].get('lat')},{stops[-1].get('lng')}"
 
-    # Use fallback deterministic summary to avoid depending on LLM keys for quick responses
     text = fallback_itinerary(start_name, end_name, transport="MTR", interests=None, budget=None)
-    # Return a concise summary string (first 3 lines)
     lines = [l for l in text.splitlines() if l.strip()]
     summary = "\n".join(lines[:6])
     return {"summary": summary}

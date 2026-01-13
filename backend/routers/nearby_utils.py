@@ -7,11 +7,9 @@ from typing import List, Dict, Any, Tuple
 import httpx
 from geopy.distance import geodesic
 
-# Data source URLs
 BUS_URL = "https://data.etabus.gov.hk/v1/transport/kmb/stop"
 MTR_URL = "https://rt.data.gov.hk/v1/transport/mtr/station_lat_lng.json"
 
-# Hardcoded sample stations for other transport types (APIs returning 403)
 SAMPLE_MINIBUS = [
     {"name": "Jordan Road Minibus Stop", "lat": 22.3047, "lng": 114.1719},
     {"name": "Mong Kok Minibus Terminal", "lat": 22.3193, "lng": 114.1694},
@@ -61,12 +59,11 @@ MTR_STATIONS = {
     "austin": {"name": "Austin Station", "lat": 22.3044, "lng": 114.1707},
 }
 
-# In-memory cache for source data and spatial index
 _cache: Dict[str, Any] = {
     "fetched": False,
-    "points": [],  # list of normalized points
+    "points": [],
     "grid": {},
-    "cell_size_deg": 0.005,  # approx 500m at equator
+    "cell_size_deg": 0.005,
 }
 
 

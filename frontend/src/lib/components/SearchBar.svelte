@@ -1,11 +1,11 @@
 <script lang="ts">
-  /// <reference types="svelte" />
+
   import { createEventDispatcher } from "svelte";
 
   type Result = { name?: string; address?: string; [key: string]: any };
 
   export let placeholder: string = "";
-  export let value: string = ""; 
+  export let value: string = "";
 
   let results: Result[] = [];
   let timer: number | null = null;
@@ -26,7 +26,7 @@
   async function doSearch() {
     try {
       const q = encodeURIComponent(value.trim());
-      const res = await fetch(`http://127.0.0.1:8000/api/geocode/search?q=${q}`);
+      const res = await fetch(`http:
       if (!res.ok) {
         results = [];
         return;
@@ -40,7 +40,7 @@
 
   function choose(r: Result) {
     dispatch("select", r);
-    value = r.name || value; 
+    value = r.name || value;
     results = [];
     highlighted = -1;
   }

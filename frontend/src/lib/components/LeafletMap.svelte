@@ -5,7 +5,7 @@
   export let center: { lat: number; lng: number };
   export let markers: { lat: number; lng: number; title: string; color: string }[] = [];
   export let polyline: { lat: number; lng: number; style?: 'solid' | 'dotted'; type?: string }[] = [];
-  // POI markers (separate layer)
+
   export let poiMarkers: { lat: number; lng: number; name: string; description?: string; type?: string }[] = [];
   export let showPois: boolean = true;
 
@@ -22,7 +22,7 @@
 
     map = L.map(mapDiv).setView([center.lat, center.lng], 12);
 
-    L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
+    L.tileLayer("https:
       maxZoom: 19
     }).addTo(map);
 
@@ -38,7 +38,7 @@
     });
   });
 
-  // ----- UPDATE MARKERS -----
+
   $: if (map && layerMarkers) {
     layerMarkers.clearLayers();
     import("leaflet").then((L) => {
@@ -56,13 +56,13 @@
     });
   }
 
-  // ----- UPDATE POI LAYER -----
+
   $: if (map && layerPois) {
     layerPois.clearLayers();
     if (showPois && poiMarkers && poiMarkers.length > 0) {
       import("leaflet").then((L) => {
         poiMarkers.forEach(p => {
-          // simple colored div icon based on type
+
           const color = p.type === 'museum' ? '#6b21a8' : p.type === 'restaurant' ? '#ef4444' : '#f59e0b';
           const iconHtml = `<div style="background:${color};width:18px;height:18px;border-radius:50%;border:2px solid white;box-shadow:0 0 6px rgba(0,0,0,0.3)"></div>`;
           const icon = L.divIcon({ html: iconHtml, className: '' });
@@ -74,30 +74,30 @@
     }
   }
 
-  // ----- UPDATE POLYLINE -----
+
   $: if (layerRoute) {
     layerRoute.clearLayers();
 
     if (polyline.length > 0) {
       import("leaflet").then((L) => {
-        // Group polyline segments by style
+
         let currentSegment: { lat: number; lng: number; style?: string; type?: string }[] = [];
         let currentStyle: string = 'solid';
         let currentType: string = 'walk';
-        
+
         polyline.forEach((p, idx) => {
           const style: string = p.style || 'solid';
           const type: string = p.type || 'walk';
-          
+
           if ((style !== currentStyle || type !== currentType) && currentSegment.length > 0) {
-            // Render current segment with appropriate styling
+
             const pts = currentSegment.map((pt): [number, number] => [pt.lat, pt.lng]);
-            
-            // Determine color and weight based on type
-            let color = '#3b82f6'; // default blue
+
+
+            let color = '#3b82f6';
             let weight = 5;
             let dashArray = 'none';
-            
+
             if (currentType === 'walk') {
               color = '#3b82f6';
               weight = 4;
@@ -112,7 +112,7 @@
               color = '#10b981';
               weight = 6;
             }
-            
+
             L.polyline(pts, { color, weight, dashArray }).addTo(layerRoute);
             currentSegment = [];
             currentStyle = style;
@@ -120,15 +120,15 @@
           }
           currentSegment.push(p);
         });
-        
-        // Render final segment
+
+
         if (currentSegment.length > 1) {
           const pts = currentSegment.map((pt): [number, number] => [pt.lat, pt.lng]);
-          
+
           let color = '#3b82f6';
           let weight = 5;
           let dashArray = 'none';
-          
+
           if (currentType === 'walk') {
             color = '#3b82f6';
             weight = 4;
@@ -143,11 +143,11 @@
             color = '#10b981';
             weight = 6;
           }
-          
+
           L.polyline(pts, { color, weight, dashArray }).addTo(layerRoute);
         }
 
-        // Fit map bounds to include route and markers
+
         try {
           const allPts: [number, number][] = [];
           polyline.forEach(p => allPts.push([p.lat, p.lng]));
@@ -157,13 +157,13 @@
             map.fitBounds(bounds, { padding: [50, 50] });
           }
         } catch (e) {
-          // ignore fitBounds errors
+
         }
       });
     }
   }
 
-  // Also fit bounds if markers change but no polyline
+
   $: if (map && layerMarkers && (!polyline || polyline.length === 0) && markers && markers.length > 0) {
     import("leaflet").then((L) => {
       try {

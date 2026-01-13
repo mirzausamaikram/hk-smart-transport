@@ -29,12 +29,12 @@
   let selectedOption: ItineraryOption | null = null;
   let errorMessage = "";
 
-  // Map markers
+
   let markers: Array<{ lat: number; lng: number; title: string; color: string }> = [];
-  // POI markers (from backend)
+
   let poiMarkers: Array<{ lat: number; lng: number; name: string; description?: string; type?: string }> = [];
   let showPois = true;
-  // Route options from backend
+
   let routeOptions: any[] = [];
   let selectedRoute: any = null;
   let routePolyline: { lat: number; lng: number }[] = [];
@@ -61,7 +61,7 @@
   const transportOptions = ["MTR", "Bus", "Tram", "Ferry", "Walk", "Taxi", "Mixed"];
 
   onMount(() => {
-    // Set default date to today
+
     const today = new Date().toISOString().split('T')[0];
     selectedDate = today;
     selectedTime = "09:00";
@@ -77,7 +77,7 @@
 
   async function geocodePlace(place: string): Promise<Coordinates | null> {
     try {
-      const res = await fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(place + ", Hong Kong")}`);
+      const res = await fetch(`https:
       const data = await res.json();
       if (data && data.length > 0) {
         return {
@@ -104,13 +104,13 @@
     markers = [];
 
     try {
-      // Geocode locations
+
       const [startCoords, endCoords] = await Promise.all([
         geocodePlace(start_place),
         geocodePlace(end_place)
       ]);
 
-      const res = await fetch("http://127.0.0.1:8000/api/itinerary/ai", {
+      const res = await fetch("http:
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -136,12 +136,12 @@
           estimated_cost: opt.estimated_cost || "N/A",
           duration: opt.duration || "N/A"
         }));
-        
+
         if (itineraryOptions.length > 0) {
           selectedOption = itineraryOptions[0];
         }
       } else if (data.itinerary) {
-        // Fallback for single itinerary
+
         itineraryOptions = [{
           id: 0,
           title: "Recommended Route",
@@ -154,30 +154,30 @@
         errorMessage = "Error: " + JSON.stringify(data.error || "No itinerary generated");
       }
 
-      // Update markers with geocoded coordinates or fallback
+
       markers = [
-        { 
-          lat: startCoords?.lat || 22.3027, 
-          lng: startCoords?.lng || 114.1772, 
-          title: start_place, 
-          color: "#4CAF50" 
+        {
+          lat: startCoords?.lat || 22.3027,
+          lng: startCoords?.lng || 114.1772,
+          title: start_place,
+          color: "#4CAF50"
         },
-        { 
-          lat: endCoords?.lat || 22.3127, 
-          lng: endCoords?.lng || 114.1872, 
-          title: end_place, 
-          color: "#FF5722" 
+        {
+          lat: endCoords?.lat || 22.3127,
+          lng: endCoords?.lng || 114.1872,
+          title: end_place,
+          color: "#FF5722"
         }
       ];
-      // If backend returned POIs, set poiMarkers (do not duplicate into main markers)
+
       poiMarkers = [];
       if (data.pois && Array.isArray(data.pois)) {
         poiMarkers = data.pois.map((p: any) => ({ lat: Number(p.lat), lng: Number(p.lng), name: p.name, description: p.description || '', type: p.type || '' }));
       }
-      // Fetch route options from backend route planner
+
       if (startCoords && endCoords) {
         try {
-          const rres = await fetch("http://127.0.0.1:8000/api/route/enhanced", {
+          const rres = await fetch("http:
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({
@@ -189,7 +189,7 @@
           });
           const rdata = await rres.json();
           routeOptions = rdata.route_options || [];
-          // convert returned polyline (array of [lat,lng]) to objects
+
           routePolyline = (rdata.polyline || []).map((p: any) => ({ lat: p[0], lng: p[1] }));
           selectedRoute = routeOptions.length > 0 ? routeOptions[0] : null;
         } catch (e) {
@@ -215,11 +215,11 @@
   }
 
   function showRouteOnMap(route: any) {
-    // if route has its own polyline use it, otherwise use main routePolyline
+
     if (route && route.polyline) {
       routePolyline = route.polyline.map((p: any) => ({ lat: p[0], lng: p[1] }));
     } else {
-      // kept as-is (already populated from /enhanced)
+
     }
     selectedRoute = route;
   }
@@ -230,7 +230,7 @@
     <h1>✨ AI-Powered Hong Kong Itinerary Planner</h1>
     <p class="subtitle">Create your perfect Hong Kong experience with personalized recommendations</p>
 
-    <!-- Location Inputs -->
+
     <div class="section">
       <h3>📍 Locations</h3>
       <div class="inputs">
@@ -239,7 +239,7 @@
       </div>
     </div>
 
-    <!-- Date & Time -->
+
     <div class="section">
       <h3>📅 When are you planning?</h3>
       <div class="datetime-inputs">
@@ -258,13 +258,13 @@
       </div>
     </div>
 
-    <!-- Transport Selection -->
+
     <div class="section">
       <h3>🚇 Preferred Transport</h3>
       <div class="transport-grid">
         {#each transportOptions as t}
-          <button 
-            class="transport-btn" 
+          <button
+            class="transport-btn"
             class:active={transport === t}
             on:click={() => transport = t}
           >
@@ -282,13 +282,13 @@
       </div>
     </div>
 
-    <!-- Route Preference -->
+
     <div class="section">
       <h3>🎯 Route Preference</h3>
       <div class="preference-grid">
         {#each preferences as pref}
-          <button 
-            class="preference-btn" 
+          <button
+            class="preference-btn"
             class:active={preference === pref.id}
             on:click={() => preference = pref.id}
           >
@@ -299,13 +299,13 @@
       </div>
     </div>
 
-    <!-- Interests -->
+
     <div class="section">
       <h3>❤️ What interests you?</h3>
       <div class="interests-grid">
         {#each interestOptions as interest}
-          <button 
-            class="interest-btn" 
+          <button
+            class="interest-btn"
             class:active={interests.includes(interest.id)}
             on:click={() => toggleInterest(interest.id)}
           >
@@ -316,7 +316,7 @@
       </div>
     </div>
 
-    <!-- Generate Button -->
+
     <button class="generate-btn" on:click={generateItinerary} disabled={loading}>
       {#if loading}
         ⏳ Generating your perfect itinerary…
@@ -331,14 +331,14 @@
       </div>
     {/if}
 
-    <!-- Multiple Options -->
+
     {#if itineraryOptions.length > 0}
       <div class="options-section">
         <h3>🗺️ Choose Your Itinerary</h3>
         <div class="options-grid">
           {#each itineraryOptions as option}
-            <button 
-              class="option-card" 
+            <button
+              class="option-card"
               class:selected={selectedOption?.id === option.id}
               on:click={() => selectOption(option)}
             >
@@ -353,7 +353,7 @@
       </div>
     {/if}
 
-    <!-- Selected Itinerary Details -->
+
     {#if selectedOption}
       <div class="result-section">
         <div class="result-header">
@@ -364,7 +364,7 @@
       </div>
     {/if}
 
-    <!-- Routes -->
+
     {#if routeOptions.length > 0}
       <div class="options-section">
         <h3>🛣️ Route Options</h3>
@@ -395,7 +395,7 @@
       </div>
     {/if}
 
-    <!-- Map -->
+
     {#if markers.length > 0 || poiMarkers.length > 0}
       <div class="map-section">
         <h3>🗺️ Route Map</h3>
