@@ -119,9 +119,19 @@ def pick_pois_for_interests(interests: Optional[List[str]], origin: Optional[Tup
     return picks
 
 
-def fallback_itinerary(start: str, end: str, transport: str, interests: Optional[List[str]] = None, budget: Optional[float] = None, pois: Optional[List[dict]] = None) -> str:
+def fallback_itinerary(start: str, end: str, transport: str, interests: Optional[List[str]] = None, budget: Optional[float] = None, pois: Optional[List[dict]] = None, time: Optional[str] = None) -> str:
     """Create a simple deterministic itinerary enriched with local POIs."""
-    start_time = datetime.now().replace(hour=9, minute=0, second=0, microsecond=0)
+    # Parse time parameter or default to 09:00
+    if time:
+        try:
+            time_parts = time.split(":")
+            hour = int(time_parts[0])
+            minute = int(time_parts[1]) if len(time_parts) > 1 else 0
+            start_time = datetime.now().replace(hour=hour, minute=minute, second=0, microsecond=0)
+        except Exception:
+            start_time = datetime.now().replace(hour=9, minute=0, second=0, microsecond=0)
+    else:
+        start_time = datetime.now().replace(hour=9, minute=0, second=0, microsecond=0)
     slots = [60, 90, 60, 120, 90]
 
     # attempt to geocode start to match nearby POIs
@@ -267,7 +277,7 @@ def generate_ai_itinerary(req: AIRequest):
             if hf_text:
                 return {"itinerary": hf_text, "pois": selected_pois}
             # final fallback
-            return {"error": f"LLM request failed: {str(e)}", "itinerary": fallback_itinerary(req.start_place, req.end_place, req.transport, req.interests, req.budget, pois=selected_pois), "pois": selected_pois}
+            return {"error": f"LLM request failed: {str(e)}", "itinerary": fallback_itinerary(req.start_place, req.end_place, req.transport, req.interests, req.budget, pois=selected_pois, time=req.time), "pois": selected_pois}
 
     # If OpenAI not available, try Hugging Face if configured
     if HF_API_KEY:
@@ -276,7 +286,7 @@ def generate_ai_itinerary(req: AIRequest):
             return {"itinerary": hf_text, "pois": selected_pois}
 
     # No LLM key available — return deterministic itinerary with POIs
-    itinerary = fallback_itinerary(req.start_place, req.end_place, req.transport, req.interests, req.budget, pois=selected_pois)
+    itinerary = fallback_itinerary(req.start_place, req.end_place, req.transport, req.interests, req.budget, pois=selected_pois, time=req.time)
     return {"itinerary": itinerary, "pois": selected_pois}
 
 
