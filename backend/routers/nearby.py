@@ -14,7 +14,4 @@ async def get_nearby(lat: float = Query(...), lng: float = Query(...), radius: i
         results = await query_nearby(lat, lng, radius_m=radius, types=types, limit=limit)
         return {"results": results}
     except Exception as e:
-        import traceback
-        print(f"ERROR in get_nearby: {e}")
-        traceback.print_exc()
         return {"results": [], "error": str(e)}

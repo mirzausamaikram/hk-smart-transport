@@ -167,8 +167,8 @@ async def _fetch_all_sources() -> List[Dict[str, Any]]:
                             points.append(normalized)
                     except Exception:
                         continue
-    except Exception as e:
-        print(f"BUS fetch error: {e}")
+    except Exception:
+        pass
 
     # MINIBUS - use hardcoded samples
     for item in SAMPLE_MINIBUS:
@@ -201,8 +201,7 @@ async def _fetch_all_sources() -> List[Dict[str, Any]]:
     try:
         mtr_points = await load_mtr_stations()
         points.extend(mtr_points)
-    except Exception as e:
-        print(f"MTR load error: {e}; using hardcoded fallback")
+    except Exception:
         for station_data in MTR_STATIONS.values():
             points.append({
                 "name": station_data["name"],
@@ -328,8 +327,8 @@ async def load_mtr_stations(stale_days: int = 14) -> List[Dict[str, Any]]:
                 stations = raw
             if stations and age_days <= stale_days:
                 cache_ok = True
-    except Exception as e:
-        print(f"MTR cache read error: {e}")
+    except Exception:
+        pass
 
     if cache_ok:
         points: List[Dict[str, Any]] = []
@@ -384,8 +383,8 @@ async def load_mtr_stations(stale_days: int = 14) -> List[Dict[str, Any]]:
             }
             with open(path, "w", encoding="utf-8") as f:
                 json.dump(to_store, f, ensure_ascii=False, indent=2)
-        except Exception as e:
-            print(f"MTR cache write error: {e}")
+        except Exception:
+            pass
         return fetched_points
 
     # If fetch failed but cache had data (stale), return normalized stale cache
@@ -406,11 +405,9 @@ async def load_mtr_stations(stale_days: int = 14) -> List[Dict[str, Any]]:
                 })
             except Exception:
                 continue
-        print("MTR API unavailable; using stale cache")
         return points
 
     # Final fallback: hardcoded small set
-    print(f"MTR API/cache unavailable; using hardcoded fallback ({fetch_error})")
     fallback: List[Dict[str, Any]] = []
     for station_data in MTR_STATIONS.values():
         fallback.append({

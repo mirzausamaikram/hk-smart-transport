@@ -14,8 +14,7 @@ router = APIRouter()
 try:
     load_pedestrian_network()
     PEDESTRIAN_NETWORK_LOADED = True
-except Exception as e:
-    print(f"Warning: Pedestrian network not loaded: {e}")
+except Exception:
     PEDESTRIAN_NETWORK_LOADED = False
 
 OSRM_URL = "http://router.project-osrm.org/route/v1/driving/"
@@ -307,7 +306,6 @@ async def transit_detail(req: TransitDetailRequest):
     bus_stops_at_end = [s for s in end_stops if s["type"] == "Bus Stop"]
     mtr_stops_at_end = [s for s in end_stops if s["type"] == "MTR"]
     
-    print(f"DEBUG: Found {len(bus_stops_at_end)} bus stops and {len(mtr_stops_at_end)} MTR stops near destination")
     walk_to_stop_coords = f"{req.start_lng},{req.start_lat};{req.stop_lng},{req.stop_lat}"
     walk_to_url = f"{OSRM_WALK_URL}{walk_to_stop_coords}?overview=full&geometries=geojson"
     walk_to_resp = requests.get(walk_to_url).json()

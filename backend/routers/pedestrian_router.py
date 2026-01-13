@@ -109,13 +109,11 @@ class PedestrianNetworkGraph:
                             self.edges[node2_id].append(Edge(node2, node1, distance))
             
             self.loaded = True
-            print(f"✓ Loaded pedestrian network: {len(self.nodes)} nodes")
             return True
         
         except FileNotFoundError:
             return False
-        except Exception as e:
-            print(f"Warning: Error loading pedestrian network: {e}")
+        except Exception:
             return False
     
     def _find_or_create_node(self, lat: float, lng: float, tolerance: float = 0.0001) -> Optional[str]:
@@ -256,8 +254,7 @@ def load_pedestrian_network(geojson_file: str = "data/hk_pedestrian_network.geoj
     _network = PedestrianNetworkGraph()
     try:
         return _network.load_from_geojson(Path(geojson_file))
-    except Exception as e:
-        print(f"Warning: Could not load pedestrian network: {e}")
+    except Exception:
         return False
 
 def route_walking(start_lat: float, start_lng: float, 

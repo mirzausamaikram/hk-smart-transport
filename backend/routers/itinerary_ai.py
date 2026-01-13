@@ -139,7 +139,7 @@ def fallback_itinerary(start: str, end: str, transport: str, interests: Optional
         f"Head towards **{end}**, using {transport} where appropriate, and finish the day at the destination."
     ]
 
-    lines = ["
+    lines = []
     current = start_time
     total_cost = 0
     for dur, act in zip(slots, activities):
