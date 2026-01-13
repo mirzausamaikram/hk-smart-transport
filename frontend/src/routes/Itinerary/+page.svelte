@@ -77,7 +77,7 @@
 
   async function geocodePlace(place: string): Promise<Coordinates | null> {
     try {
-      const res = await fetch(`https:
+      const res = await fetch(`https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(place)}&format=json`);
       const data = await res.json();
       if (data && data.length > 0) {
         return {
@@ -110,7 +110,7 @@
         geocodePlace(end_place)
       ]);
 
-      const res = await fetch("http:
+      const res = await fetch(`http://localhost:8000/api/itinerary/ai`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -177,7 +177,7 @@
 
       if (startCoords && endCoords) {
         try {
-          const rres = await fetch("http:
+          const rres = await fetch("http://localhost:8000/api/route/enhanced", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({

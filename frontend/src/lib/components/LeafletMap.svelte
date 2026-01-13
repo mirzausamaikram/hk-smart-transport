@@ -22,7 +22,7 @@
 
     map = L.map(mapDiv).setView([center.lat, center.lng], 12);
 
-    L.tileLayer("https:
+    L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
       maxZoom: 19
     }).addTo(map);
 

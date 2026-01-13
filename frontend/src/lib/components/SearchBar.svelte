@@ -26,7 +26,7 @@
   async function doSearch() {
     try {
       const q = encodeURIComponent(value.trim());
-      const res = await fetch(`http:
+      const res = await fetch(`http://localhost:8000/api/geocode/search?q=${q}`);
       if (!res.ok) {
         results = [];
         return;

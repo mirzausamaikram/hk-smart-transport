@@ -42,7 +42,7 @@
   let lastRefreshTime = Date.now();
 
 
-  const API_BASE = "http:
+  const API_BASE = "http://localhost:8000/api/route";
 
 
   const MTR_LINE_COLORS: { [key: string]: string } = {
@@ -128,7 +128,7 @@
 
       endName = toParam;
 
-      fetch(`http:
+      fetch(`${API_BASE}/api/geocode/search?q=${encodeURIComponent(toParam)}`)
         .then(res => res.json())
         .then(data => {
           if (data && data.lat && data.lng) {
