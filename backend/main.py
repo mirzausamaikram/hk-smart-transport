@@ -47,3 +47,8 @@ app.include_router(itinerary_ai, prefix="/api/itinerary")
 @app.get("/")
 def root():
     return {"message": "HK Smart Transport API Running"}
+
+
+if __name__ == "__main__":
+    import uvicorn
+    uvicorn.run(app, host="127.0.0.1", port=8000)
